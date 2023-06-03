@@ -216,9 +216,26 @@ int main(int argc, const char **argv) {
           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
           HasError = true;
         }
-      } else if (auto Err = Interp->ParseAndExecute(Input)) {
-        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-        HasError = true;
+      } else {
+        auto PTU = Interp->Parse(Input);
+        if (!PTU) {
+          llvm::logAllUnhandledErrors(std::move(PTU.takeError()), llvm::errs(), "error: ");
+          HasError = true;
+        }
+        else {
+          for (clang::Decl* D : (*PTU).TUPart->decls()) {
+            if (llvm::isa<clang::VarDecl>(D)) {
+              std::cout<<llvm::cast<clang::VarDecl>(D)->getName().str()<<std::endl;
+            }
+            else {
+              std::cout<<D->getDeclKindName()<<std::endl;
+            }
+          }
+          if (auto Err = Interp->Execute(*PTU)) {
+            llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+            HasError = true;
+          }
+        }
       }
 
       Input = "";
