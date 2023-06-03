@@ -22,6 +22,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include <optional>
+#include <iostream>
 
 static llvm::cl::opt<bool> CudaEnabled("cuda", llvm::cl::Hidden);
 static llvm::cl::opt<std::string> CudaPath("cuda-path", llvm::cl::Hidden);
@@ -69,6 +70,39 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
   }
   return (Errs || HasError) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+
+
+struct TestListCompleter {
+  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
+                                                 size_t Pos) const{
+    std::vector<llvm::LineEditor::Completion> Comps;
+    // first wew look for a space
+    // if space is not found from right, then use the whole typed string
+    // Otherwise, use Buffer[found_idx:] to search for completion candidates.
+    size_t space_pos = Buffer.rfind(" ");
+    llvm::StringRef s;
+    if (space_pos == llvm::StringRef::npos) {
+      s = Buffer;
+    } else {
+      s = Buffer.substr(space_pos + 1);
+    }
+
+    // if s is empty, return an empty vector;
+    if (s.empty()) {
+      return Comps;
+    }
+
+    std::vector<llvm::StringRef> candidates = {llvm::StringRef("foo"), llvm::StringRef("bar"), llvm::StringRef("bartender")};
+
+    for (auto c : candidates) {
+      if (c.startswith(s)) {
+        Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
+      }
+    }
+    return Comps;
+  }
+};
+
 
 llvm::ExitOnError ExitOnErr;
 int main(int argc, const char **argv) {
@@ -153,10 +187,12 @@ int main(int argc, const char **argv) {
 
   bool HasError = false;
 
+
   if (OptInputs.empty()) {
     llvm::LineEditor LE("clang-repl");
     // FIXME: Add LE.setListCompleter
     std::string Input;
+    LE.setListCompleter(TestListCompleter());
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
       L = L.trim();
@@ -168,7 +204,6 @@ int main(int argc, const char **argv) {
       }
 
       Input += L;
-
       if (Input == R"(%quit)") {
         break;
       } else if (Input == R"(%undo)") {
