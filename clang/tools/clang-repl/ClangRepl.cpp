@@ -71,8 +71,19 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
   return (Errs || HasError) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
+struct GlobalEnv{
+  std::vector<llvm::StringRef> names;
+
+  void extend(llvm::StringRef name) {
+    names.push_back(name);
+  }
+};
+
 
 struct TestListCompleter {
+
+  GlobalEnv &env;
+  TestListCompleter(GlobalEnv &env) : env(env) {}
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
                                                  size_t Pos) const{
     std::vector<llvm::LineEditor::Completion> Comps;
@@ -92,9 +103,7 @@ struct TestListCompleter {
       return Comps;
     }
 
-    std::vector<llvm::StringRef> candidates = {llvm::StringRef("foo"), llvm::StringRef("bar"), llvm::StringRef("bartender")};
-
-    for (auto c : candidates) {
+    for (auto c : env.names) {
       if (c.startswith(s)) {
         Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
       }
@@ -192,7 +201,8 @@ int main(int argc, const char **argv) {
     llvm::LineEditor LE("clang-repl");
     // FIXME: Add LE.setListCompleter
     std::string Input;
-    LE.setListCompleter(TestListCompleter());
+    GlobalEnv GEnv;
+    LE.setListCompleter(TestListCompleter(GEnv));
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
       L = L.trim();
@@ -225,7 +235,7 @@ int main(int argc, const char **argv) {
         else {
           for (clang::Decl* D : (*PTU).TUPart->decls()) {
             if (llvm::isa<clang::VarDecl>(D)) {
-              std::cout<<llvm::cast<clang::VarDecl>(D)->getName().str()<<std::endl;
+              GEnv.extend(llvm::cast<clang::VarDecl>(D)->getName());
             }
             else {
               std::cout<<D->getDeclKindName()<<std::endl;
