@@ -14,6 +14,7 @@
 #include "clang/Interpreter/Interpreter.h"
 
 #include "DeviceOffload.h"
+#include "ExternalSource.h"
 #include "IncrementalExecutor.h"
 #include "IncrementalParser.h"
 
@@ -33,6 +34,7 @@
 #include "clang/Driver/Tool.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
+#include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Value.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/Lookup.h"
@@ -127,7 +129,6 @@ CreateCI(const llvm::opt::ArgStringList &Argv) {
 
   Clang->getFrontendOpts().DisableFree = false;
   Clang->getCodeGenOpts().DisableFree = false;
-
   return std::move(Clang);
 }
 
@@ -237,6 +238,18 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
                                                    *TSCtx->getContext(), Err);
 }
 
+Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err,
+                         std::vector<CodeCompletionResult> &CompResults,
+                         const CompilerInstance *ParentCI) {
+  llvm::ErrorAsOutParameter EAO(&Err);
+  auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
+  TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
+  auto *CConsumer = new ReplCompletionConsumer(CompResults);
+  CI->setCodeCompletionConsumer(CConsumer);
+  IncrParser = std::make_unique<IncrementalParser>(
+      *this, std::move(CI), *TSCtx->getContext(), Err, ParentCI);
+}
+
 Interpreter::~Interpreter() {
   if (IncrExecutor) {
     if (llvm::Error Err = IncrExecutor->cleanUp())
@@ -284,6 +297,34 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
   // FIXME: This is a ugly hack. Undo command checks its availability by looking
   // at the size of the PTU list. However we have parsed something in the
   // beginning of the REPL so we have to mark them as 'Irrevocable'.
+  Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
+  return std::move(Interp);
+}
+
+llvm::Expected<std::unique_ptr<Interpreter>>
+Interpreter::createForCodeCompletion(
+    IncrementalCompilerBuilder &CB, const CompilerInstance *ParentCI,
+    std::vector<CodeCompletionResult> &CompResults) {
+  auto CI = CB.CreateCpp();
+  if (auto Err = CI.takeError()) {
+    return std::move(Err);
+  }
+
+  (*CI)->getPreprocessorOpts().SingleFileParseMode = true;
+
+  (*CI)->getLangOpts().SpellChecking = false;
+  (*CI)->getLangOpts().DelayedTemplateParsing = false;
+
+  auto &FrontendOpts = (*CI)->getFrontendOpts();
+  FrontendOpts.CodeCompleteOpts = getClangCompleteOpts();
+
+  llvm::Error Err = llvm::Error::success();
+  auto Interp = std::unique_ptr<Interpreter>(
+      new Interpreter(std::move(*CI), Err, CompResults, ParentCI));
+
+  if (Err)
+    return std::move(Err);
+
   Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
   return std::move(Interp);
 }
@@ -736,6 +777,12 @@ Expr *Interpreter::SynthesizeExpr(Expr *E) {
   if (Result.isInvalid())
     return E;
   return Result.get();
+}
+
+std::string Interpreter::getAllInput() const { return IncrParser->AllInput; }
+
+void Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line) {
+  IncrParser->ParseForCodeCompletion(Input, Col, Line);
 }
 
 // Temporary rvalue struct that need special care.

@@ -35,9 +35,11 @@ class ThreadSafeContext;
 
 namespace clang {
 
+class CodeCompletionResult;
 class CompilerInstance;
 class IncrementalExecutor;
 class IncrementalParser;
+class ReplCompletionConsumer;
 
 /// Create a pre-configured \c CompilerInstance for incremental processing.
 class IncrementalCompilerBuilder {
@@ -80,8 +82,12 @@ class Interpreter {
 
   // An optional parser for CUDA offloading
   std::unique_ptr<IncrementalParser> DeviceParser;
+  std::unique_ptr<ReplCompletionConsumer> CConsumer;
 
   Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
+  Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err,
+              std::vector<CodeCompletionResult> &CompResults,
+              const CompilerInstance *ParentCI = nullptr);
 
   llvm::Error CreateExecutor();
   unsigned InitPTUSize = 0;
@@ -93,13 +99,22 @@ class Interpreter {
 
 public:
   ~Interpreter();
+
   static llvm::Expected<std::unique_ptr<Interpreter>>
   create(std::unique_ptr<CompilerInstance> CI);
+
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                  std::unique_ptr<CompilerInstance> DCI);
+
+  static llvm::Expected<std::unique_ptr<Interpreter>>
+  createForCodeCompletion(IncrementalCompilerBuilder &CB,
+                          const CompilerInstance *ParentCI,
+                          std::vector<CodeCompletionResult> &CompResults);
+
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
+  void CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 
@@ -135,6 +150,8 @@ public:
   }
 
   Expr *SynthesizeExpr(Expr *E);
+
+  std::string getAllInput() const;
 
 private:
   size_t getEffectivePTUSize() const;

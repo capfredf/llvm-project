@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "IncrementalParser.h"
+#include "ExternalSource.h"
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/CodeGenAction.h"
@@ -26,6 +27,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Timer.h"
 
+#include <iostream>
 #include <sstream>
 
 namespace clang {
@@ -115,10 +117,12 @@ public:
 class IncrementalAction : public WrapperFrontendAction {
 private:
   bool IsTerminating = false;
+  const CompilerInstance *ParentCI;
 
 public:
   IncrementalAction(CompilerInstance &CI, llvm::LLVMContext &LLVMCtx,
-                    llvm::Error &Err)
+                    llvm::Error &Err,
+                    const CompilerInstance *ParentCI = nullptr)
       : WrapperFrontendAction([&]() {
           llvm::ErrorAsOutParameter EAO(&Err);
           std::unique_ptr<FrontendAction> Act;
@@ -152,7 +156,8 @@ public:
             break;
           }
           return Act;
-        }()) {}
+        }()),
+        ParentCI(ParentCI) {}
   FrontendAction *getWrapped() const { return WrappedAction.get(); }
   TranslationUnitKind getTranslationUnitKind() override {
     return TU_Incremental;
@@ -174,6 +179,18 @@ public:
 
     Preprocessor &PP = CI.getPreprocessor();
     PP.EnterMainSourceFile();
+
+    if (ParentCI) {
+      ExternalSource *myExternalSource = new ExternalSource(
+          CI.getASTContext(), CI.getFileManager(), ParentCI->getASTContext(),
+          ParentCI->getFileManager());
+      llvm::IntrusiveRefCntPtr<ExternalASTSource> astContextExternalSource(
+          myExternalSource);
+      CI.getASTContext().setExternalSource(astContextExternalSource);
+      CI.getASTContext().getTranslationUnitDecl()->setHasExternalVisibleStorage(
+          true);
+      // Clang->
+    }
 
     if (!CI.hasSema())
       CI.createSema(getTranslationUnitKind(), CompletionConsumer);
@@ -206,10 +223,11 @@ IncrementalParser::IncrementalParser() {}
 IncrementalParser::IncrementalParser(Interpreter &Interp,
                                      std::unique_ptr<CompilerInstance> Instance,
                                      llvm::LLVMContext &LLVMCtx,
-                                     llvm::Error &Err)
+                                     llvm::Error &Err,
+                                     const CompilerInstance *ParentCI)
     : CI(std::move(Instance)) {
   llvm::ErrorAsOutParameter EAO(&Err);
-  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err);
+  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err, ParentCI);
   if (Err)
     return;
   CI->ExecuteAction(*Act);
@@ -305,22 +323,49 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   return LastPTU;
 }
 
-llvm::Expected<PartialTranslationUnit &>
-IncrementalParser::Parse(llvm::StringRef input) {
+void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
+                                               size_t Col, size_t Line) {
   Preprocessor &PP = CI->getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
 
   std::ostringstream SourceName;
-  SourceName << "input_line_" << InputCount++;
+  SourceName << "input_line_[Completion]";
 
+  auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
+  auto FE = CI->getSourceManager().getFileEntryRefForID(FID);
+  // auto Entry = PP.getFileManager().getFile(DummyFN);
+  // if (!Entry) {
+  //   std::cout << "Entry invalid \n";
+  //   return;
+  // }
+  if (FE) {
+    PP.SetCodeCompletionPoint(*FE, Line, Col);
+
+    // NewLoc only used for diags.
+    if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
+      return;
+
+    auto PTU = ParseOrWrapTopLevelDecl();
+    if (auto Err = PTU.takeError()) {
+      consumeError(std::move(Err));
+      return;
+    }
+
+    return;
+  }
+}
+
+std::pair<FileID, SourceLocation>
+IncrementalParser::createSourceFile(llvm::StringRef SourceName,
+                                    llvm::StringRef Input) {
   // Create an uninitialized memory buffer, copy code in and append "\n"
-  size_t InputSize = input.size(); // don't include trailing 0
+  size_t InputSize = Input.size(); // don't include trailing 0
   // MemBuffer size should *not* include terminating zero
   std::unique_ptr<llvm::MemoryBuffer> MB(
       llvm::WritableMemoryBuffer::getNewUninitMemBuffer(InputSize + 1,
                                                         SourceName.str()));
   char *MBStart = const_cast<char *>(MB->getBufferStart());
-  memcpy(MBStart, input.data(), InputSize);
+  memcpy(MBStart, Input.data(), InputSize);
   MBStart[InputSize] = '\n';
 
   SourceManager &SM = CI->getSourceManager();
@@ -330,18 +375,46 @@ IncrementalParser::Parse(llvm::StringRef input) {
   SourceLocation NewLoc = SM.getLocForStartOfFile(SM.getMainFileID());
 
   // Create FileID for the current buffer.
-  FileID FID = SM.createFileID(std::move(MB), SrcMgr::C_User, /*LoadedID=*/0,
-                               /*LoadedOffset=*/0, NewLoc);
+  // FileID FID = SM.createFileID(std::move(MB), SrcMgr::C_User, /*LoadedID=*/0,
+  //                              /*LoadedOffset=*/0, NewLoc);
+
+  const clang::FileEntry *FE = SM.getFileManager().getVirtualFile(
+      SourceName.str(), InputSize, 0 /* mod time*/);
+  SM.overrideFileContents(FE, std::move(MB));
+  FileID FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
+  return {FID, NewLoc};
+}
+
+llvm::Expected<PartialTranslationUnit &>
+IncrementalParser::ParseForPTU(FileID FID, SourceLocation SrcLoc) {
+  // Create an uninitialized memory buffer, copy code in and append "\n"
+  Preprocessor &PP = CI->getPreprocessor();
+  assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
 
   // NewLoc only used for diags.
-  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, NewLoc))
+  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
     return llvm::make_error<llvm::StringError>("Parsing failed. "
                                                "Cannot enter source file.",
                                                std::error_code());
 
   auto PTU = ParseOrWrapTopLevelDecl();
   if (!PTU)
-    return PTU.takeError();
+    return std::move(PTU.takeError());
+  return *PTU;
+}
+
+llvm::Expected<PartialTranslationUnit &>
+IncrementalParser::Parse(llvm::StringRef input) {
+  Preprocessor &PP = CI->getPreprocessor();
+  std::ostringstream SourceName;
+  SourceName << "input_line_" << InputCount++;
+
+  auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
+  auto PTU = ParseForPTU(FID, SrcLoc);
+
+  if (!PTU) {
+    return std::move(PTU.takeError());
+  }
 
   if (PP.getLangOpts().DelayedTemplateParsing) {
     // Microsoft-specific:
