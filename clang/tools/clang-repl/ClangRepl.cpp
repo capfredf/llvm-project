@@ -14,6 +14,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Interpreter/InterpreterAutoCompletion.h"
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/LineEditor/LineEditor.h"
@@ -70,47 +71,6 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
   }
   return (Errs || HasError) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-
-struct GlobalEnv{
-  std::vector<llvm::StringRef> names;
-
-  void extend(llvm::StringRef name) {
-    names.push_back(name);
-  }
-};
-
-
-struct TestListCompleter {
-
-  GlobalEnv &env;
-  TestListCompleter(GlobalEnv &env) : env(env) {}
-  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
-                                                 size_t Pos) const{
-    std::vector<llvm::LineEditor::Completion> Comps;
-    // first wew look for a space
-    // if space is not found from right, then use the whole typed string
-    // Otherwise, use Buffer[found_idx:] to search for completion candidates.
-    size_t space_pos = Buffer.rfind(" ");
-    llvm::StringRef s;
-    if (space_pos == llvm::StringRef::npos) {
-      s = Buffer;
-    } else {
-      s = Buffer.substr(space_pos + 1);
-    }
-
-    // if s is empty, return an empty vector;
-    if (s.empty()) {
-      return Comps;
-    }
-
-    for (auto c : env.names) {
-      if (c.startswith(s)) {
-        Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
-      }
-    }
-    return Comps;
-  }
-};
 
 
 llvm::ExitOnError ExitOnErr;
@@ -201,8 +161,8 @@ int main(int argc, const char **argv) {
     llvm::LineEditor LE("clang-repl");
     // FIXME: Add LE.setListCompleter
     std::string Input;
-    GlobalEnv GEnv;
-    LE.setListCompleter(TestListCompleter(GEnv));
+    clang::GlobalEnv GEnv;
+    LE.setListCompleter(clang::ReplListCompleter(GEnv));
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
       L = L.trim();
@@ -238,7 +198,7 @@ int main(int argc, const char **argv) {
               GEnv.extend(llvm::cast<clang::VarDecl>(D)->getName());
             }
             else {
-              std::cout<<D->getDeclKindName()<<std::endl;
+              std::cout<<D->getDeclKindName()<<"\n";
             }
           }
           if (auto Err = Interp->Execute(*PTU)) {
