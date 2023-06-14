@@ -18,6 +18,7 @@ add_clang_library(clangInterpreter
   IncrementalParser.cpp
   Interpreter.cpp
   InterpreterUtils.cpp
+  capfredf_test.cpp
   Value.cpp
 
   DEPENDS

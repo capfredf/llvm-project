@@ -6,6 +6,8 @@
 
 #ifndef LLVM_CLANG_INTERPRETER_AUTO_COMPLETION_H
 #define LLVM_CLANG_INTERPRETER_AUTO_COMPLETION_H
+#include "clang/Sema/CodeCompleteConsumer.h"
+#include "Interpreter.h"
 #include "llvm/LineEditor/LineEditor.h"
 
 namespace clang{
@@ -15,11 +17,34 @@ struct GlobalEnv{
   void extend(llvm::StringRef name);
 };
 
+clang::CodeCompleteOptions getClangCompleteOpts();
+
+
+struct ReplCompletionConsumer : public CodeCompleteConsumer {
+
+  ReplCompletionConsumer();
+  void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
+                                  CodeCompletionResult *InResults,
+                                  unsigned NumResults) final;
+
+  clang::CodeCompletionAllocator& getAllocator() override {
+    return *CCAllocator;
+  }
+
+  clang::CodeCompletionTUInfo& getCodeCompletionTUInfo() override {
+    return CCTUInfo;
+  }
+
+private:
+  std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
+  CodeCompletionTUInfo CCTUInfo;
+};
+
 
 struct ReplListCompleter {
-
   GlobalEnv &env;
-  ReplListCompleter(GlobalEnv &env) : env(env) {}
+  Interpreter &Interp;
+  ReplListCompleter(GlobalEnv &env, Interpreter &Interp);
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer, size_t Pos) const;
 };
 
