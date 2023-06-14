@@ -110,12 +110,12 @@ createArgs(std::vector<const char *> &ClangArgv) {
   // FIXME: Print proper driver diagnostics if the driver flags are wrong.
   // We do C++ by default; append right after argv[0] if no "-x" given
   ClangArgv.insert(ClangArgv.end(), "-Xclang");
-  ClangArgv.insert(ClangArgv.end(), "-fincremental-extensions");
+  ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:3:3");
   ClangArgv.insert(ClangArgv.end(), "-c");
 
   // Put a dummy C++ file on to ensure there's at least one compile job for the
   // driver to construct.
-  ClangArgv.push_back("<<< inputs >>>");
+  ClangArgv.push_back("/home/capfredf/tmp/hello_world.cpp"); // this line is crucial????
 
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.
@@ -206,8 +206,16 @@ MyCreateCI(const llvm::opt::ArgStringList &Argv){
                                    "Unable to flush diagnostics");
 
   // FIXME: Merge with CompilerInstance::ExecuteAction.
-  llvm::MemoryBuffer *MB = llvm::MemoryBuffer::getMemBuffer("").release();
-  Clang->getPreprocessorOpts().addRemappedFile("<<< inputs >>>", MB);
+  auto FN = "/home/capfredf/tmp/helloXXXworld.cpp";
+  std::ifstream FInput(FN);
+  std::stringstream InputStram;
+  InputStram << FInput.rdbuf();
+  std::string Content = InputStram.str();
+
+  // std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
+
+  llvm::MemoryBuffer *MB = llvm::MemoryBuffer::getMemBuffer(Content).release();
+  Clang->getPreprocessorOpts().addRemappedFile(FN, MB);
 
   Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
       Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
