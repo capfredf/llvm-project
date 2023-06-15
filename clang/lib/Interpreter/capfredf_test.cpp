@@ -259,26 +259,13 @@ static void LLVMErrorHandler(void *UserData, const char *Message,
 void capfredf_test(std::vector<const char *> &ArgStrs) {
   auto CConsumer = std::make_unique<clang::ReplCompletionConsumer>();
   clang::SyntaxOnlyAction Action;
-  auto FN = "/home/capfredf/tmp/hello_world.cpp";
+  auto* FN = "/home/capfredf/tmp/hello_world.cpp";
   std::ifstream FInput(FN);
   std::stringstream InputStram;
   InputStram << FInput.rdbuf();
   std::string Content = InputStram.str();
 
   std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
-  clang::DiagnosticConsumer D;
-
-  // std::string MainExecutableName =
-  //     llvm::sys::fs::getMainExecutable(nullptr, nullptr);
-
-  // ArgStrs.insert(ArgStrs.begin(), MainExecutableName.c_str());
-
-  // ArgStrs.insert(ArgStrs.end(), "-c");
-  // ArgStrs.push_back("<<< inputs >>>");
-  // auto CI = buildCompilerInvocation(D, ArgStrs);
-
-
-  // CI->getPreprocessorOpts().addRemappedFile(CI->getFrontendOpts().Inputs[0].getFile(), Buffer.get());
 
   ArgStrs.push_back("-xc++");
   auto OptClang = createArgs(ArgStrs);
@@ -292,7 +279,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   }
   auto Clang = std::move(*OptClang);
   // Clang->LoadRequestedPlugins();
-  Clang->getPreprocessorOpts().addRemappedFile("/home/capfredf/tmp/hello_world.cpp", Buffer.get());
+  Clang->getPreprocessorOpts().addRemappedFile(FN, Buffer.get());
   Clang->getPreprocessorOpts().SingleFileParseMode = true;
 
   Clang->getLangOpts().SpellChecking = false;
@@ -316,7 +303,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   Buffer.release();
 
-  Action.BeginSourceFile(*Clang, clang::FrontendInputFile("/home/capfredf/tmp/hello_world.cpp", clang::InputKind(clang::Language::CXX)));
+  Action.BeginSourceFile(*Clang, clang::FrontendInputFile(FN, clang::InputKind(clang::Language::CXX)));
   if (llvm::Error Err = Action.Execute()) {
     std::cout << "failed" << "\n";
     return;
