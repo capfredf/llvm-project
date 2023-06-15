@@ -292,7 +292,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   Buffer.release();
 
-  Action.BeginSourceFile(*Clang, clang::FrontendInputFile(DummyFN, clang::InputKind(clang::Language::CXX)));
+  Action.BeginSourceFile(*Clang, Clang->getFrontendOpts().Inputs[0]);
   if (llvm::Error Err = Action.Execute()) {
     std::cout << "failed" << "\n";
     return;
