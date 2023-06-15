@@ -116,4 +116,4 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
   // }
   return Comps;
 }
-}
+} // namespace clang
