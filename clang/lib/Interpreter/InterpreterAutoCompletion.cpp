@@ -31,7 +31,57 @@ ReplCompletionConsumer::ReplCompletionConsumer() : CodeCompleteConsumer(getClang
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
-    std::cout << "hello world\n";
+
+  for (unsigned I = 0; I < NumResults; ++I) {
+    auto &Result = InResults[I];
+    // Class members that are shadowed by subclasses are usually noise.
+    // if (Result.Hidden && Result.Declaration &&
+    //     Result.Declaration->isCXXClassMember())
+    //   continue;
+    // if (//!Opts.IncludeIneligibleResults &&
+    //     (Result.Availability == CXAvailability_NotAvailable ||
+    //      Result.Availability == CXAvailability_NotAccessible))
+    //   continue;
+    // if (Result.Declaration &&
+    //     !Context.getBaseType().isNull() // is this a member-access context?
+    //     && true // isExcludedMember(*Result.Declaration)
+    //     )
+    //   continue;
+    // // Skip injected class name when no class scope is not explicitly set.
+    // // E.g. show injected A::A in `using A::A^` but not in "A^".
+    // if (Result.Declaration && !Context.getCXXScopeSpecifier() &&
+    //     true)
+    //     // isInjectedClass(*Result.Declaration))
+    //   continue;
+    switch (Result.Kind) {
+    case CodeCompletionResult::RK_Declaration:
+      if (auto *ID = Result.Declaration->getIdentifier())
+        std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
+      // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
+      //   std::cout << "[completion] hello world " << VD->getName().str() << "\n";
+      // }
+      break;
+    default:
+      break;
+    // case CodeCompletionResult::RK_Keyword:
+    //   std::cout << "[Completion] keyword " << Result.Keyword << "\n";
+    //   break;
+    // case CodeCompletionResult::RK_Macro:
+    //   std::cout << "[Completion] macro " << Result.Macro->getName().str() << "\n";
+    //   break;
+    // case CodeCompletionResult::RK_Pattern:
+    //   std::cout << "[Completion] pattern " << Result.Pattern->getAllTypedText() << "\n";
+    //   break;
+    }
+    // We choose to never append '::' to completion results in clangd.
+    // std::cout << "[completion] hello world " << Result.Kind << "\n";
+    // if (Result.Kind == CodeCompletionResult::RK_Declaration)
+    //   if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
+    //     std::cout << "[completion] hello world " << VD->getName().str() << "\n";
+    //   }
+
+    // Results.push_back(Result);
+  }
 }
 
 ReplListCompleter::ReplListCompleter(clang::GlobalEnv &env, clang::Interpreter& Interp) : env(env), Interp(Interp){

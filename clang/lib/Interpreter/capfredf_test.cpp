@@ -110,7 +110,7 @@ createArgs(std::vector<const char *> &ClangArgv) {
   // FIXME: Print proper driver diagnostics if the driver flags are wrong.
   // We do C++ by default; append right after argv[0] if no "-x" given
   ClangArgv.insert(ClangArgv.end(), "-Xclang");
-  ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:3:3");
+  ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:7:3");
   ClangArgv.insert(ClangArgv.end(), "-c");
 
   // Put a dummy C++ file on to ensure there's at least one compile job for the
@@ -206,7 +206,7 @@ MyCreateCI(const llvm::opt::ArgStringList &Argv){
                                    "Unable to flush diagnostics");
 
   // FIXME: Merge with CompilerInstance::ExecuteAction.
-  auto FN = "/home/capfredf/tmp/helloXXXworld.cpp";
+  auto FN = "/home/capfredf/tmp/hello_world.cpp";
   std::ifstream FInput(FN);
   std::stringstream InputStram;
   InputStram << FInput.rdbuf();
