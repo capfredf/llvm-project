@@ -116,8 +116,6 @@ createArgs(std::vector<const char *> &ClangArgv) {
   // Put a dummy C++ file on to ensure there's at least one compile job for the
   // driver to construct.
   ClangArgv.push_back("<<< inputs >>>");
-  // ClangArgv.push_back("/home/capfredf/tmp/yyy.cpp"); // this line is crucial????
-  // ClangArgv.push_back("/home/capfredf/tmp/hello_world.cpp"); // this line is crucial????
 
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.
@@ -208,16 +206,6 @@ MyCreateCI(const llvm::opt::ArgStringList &Argv){
                                    "Unable to flush diagnostics");
 
   // FIXME: Merge with CompilerInstance::ExecuteAction.
-  auto FN = "/home/capfredf/tmp/hello_world.cpp";
-  std::ifstream FInput(FN);
-  std::stringstream InputStram;
-  InputStram << FInput.rdbuf();
-  std::string Content = InputStram.str();
-
-  // std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
-
-  llvm::MemoryBuffer *MB = llvm::MemoryBuffer::getMemBuffer(Content).release();
-  Clang->getPreprocessorOpts().addRemappedFile(FN, MB);
 
   Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
       Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
@@ -260,6 +248,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   auto CConsumer = std::make_unique<clang::ReplCompletionConsumer>();
   clang::SyntaxOnlyAction Action;
   auto* FN = "/home/capfredf/tmp/hello_world.cpp";
+  auto* DummyFN = "<<< inputs >>>";
   std::ifstream FInput(FN);
   std::stringstream InputStram;
   InputStram << FInput.rdbuf();
@@ -279,7 +268,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   }
   auto Clang = std::move(*OptClang);
   // Clang->LoadRequestedPlugins();
-  Clang->getPreprocessorOpts().addRemappedFile(FN, Buffer.get());
+  Clang->getPreprocessorOpts().addRemappedFile(DummyFN, Buffer.get());
   Clang->getPreprocessorOpts().SingleFileParseMode = true;
 
   Clang->getLangOpts().SpellChecking = false;
@@ -287,7 +276,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
 
   auto &FrontendOpts = Clang->getFrontendOpts();
   FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
-  FrontendOpts.CodeCompletionAt.FileName = std::string(FN);
+  FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
   FrontendOpts.CodeCompletionAt.Line = 7;
   FrontendOpts.CodeCompletionAt.Column = 3;
 
@@ -303,7 +292,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   Buffer.release();
 
-  Action.BeginSourceFile(*Clang, clang::FrontendInputFile(FN, clang::InputKind(clang::Language::CXX)));
+  Action.BeginSourceFile(*Clang, clang::FrontendInputFile(DummyFN, clang::InputKind(clang::Language::CXX)));
   if (llvm::Error Err = Action.Execute()) {
     std::cout << "failed" << "\n";
     return;
