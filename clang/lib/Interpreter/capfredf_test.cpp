@@ -109,13 +109,15 @@ createArgs(std::vector<const char *> &ClangArgv) {
   // action and use other actions in incremental mode.
   // FIXME: Print proper driver diagnostics if the driver flags are wrong.
   // We do C++ by default; append right after argv[0] if no "-x" given
-  ClangArgv.insert(ClangArgv.end(), "-Xclang");
-  ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:7:3");
+  //ClangArgv.insert(ClangArgv.end(), "-Xclang");
+  //ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:7:3");
   ClangArgv.insert(ClangArgv.end(), "-c");
 
   // Put a dummy C++ file on to ensure there's at least one compile job for the
   // driver to construct.
-  ClangArgv.push_back("/home/capfredf/tmp/hello_world.cpp"); // this line is crucial????
+  ClangArgv.push_back("<<< inputs >>>");
+  // ClangArgv.push_back("/home/capfredf/tmp/yyy.cpp"); // this line is crucial????
+  // ClangArgv.push_back("/home/capfredf/tmp/hello_world.cpp"); // this line is crucial????
 
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.
@@ -290,17 +292,17 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   }
   auto Clang = std::move(*OptClang);
   // Clang->LoadRequestedPlugins();
-  Clang->getPreprocessorOpts().addRemappedFile(Clang->getFrontendOpts().Inputs[0].getFile(), Buffer.get());
+  Clang->getPreprocessorOpts().addRemappedFile("/home/capfredf/tmp/hello_world.cpp", Buffer.get());
   Clang->getPreprocessorOpts().SingleFileParseMode = true;
 
-
-  auto &FrontendOpts = Clang->getFrontendOpts();
   Clang->getLangOpts().SpellChecking = false;
   Clang->getLangOpts().DelayedTemplateParsing = false;
-  // FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
-  // FrontendOpts.CodeCompletionAt.FileName = std::string(FN);
-  // FrontendOpts.CodeCompletionAt.Line = 3;
-  // FrontendOpts.CodeCompletionAt.Column = 3;
+
+  auto &FrontendOpts = Clang->getFrontendOpts();
+  FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
+  FrontendOpts.CodeCompletionAt.FileName = std::string(FN);
+  FrontendOpts.CodeCompletionAt.Line = 7;
+  FrontendOpts.CodeCompletionAt.Column = 3;
 
 
   // Clang->setInvocation(std::move(CI));
@@ -314,7 +316,7 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   Buffer.release();
 
-  Action.BeginSourceFile(*Clang, Clang->getFrontendOpts().Inputs[0]);
+  Action.BeginSourceFile(*Clang, clang::FrontendInputFile("/home/capfredf/tmp/hello_world.cpp", clang::InputKind(clang::Language::CXX)));
   if (llvm::Error Err = Action.Execute()) {
     std::cout << "failed" << "\n";
     return;
