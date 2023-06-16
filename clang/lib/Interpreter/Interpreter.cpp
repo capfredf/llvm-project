@@ -738,6 +738,10 @@ Expr *Interpreter::SynthesizeExpr(Expr *E) {
   return Result.get();
 }
 
+std::string Interpreter::getAllInput() const {
+  return IncrParser->AllInput;
+}
+
 // Temporary rvalue struct that need special care.
 REPL_EXTERNAL_VISIBILITY void *
 __clang_Interpreter_SetValueWithAlloc(void *This, void *OutVal,

@@ -55,8 +55,10 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     //   continue;
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
-      if (auto *ID = Result.Declaration->getIdentifier())
-        std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
+      if (auto *ID = Result.Declaration->getIdentifier()) {
+        Results.push_back(Result);
+      }
+      // std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
       // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
       //   std::cout << "[completion] hello world " << VD->getName().str() << "\n";
       // }
@@ -80,8 +82,28 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     //     std::cout << "[completion] hello world " << VD->getName().str() << "\n";
     //   }
 
-    // Results.push_back(Result);
+
   }
+}
+
+std::vector<StringRef> ReplCompletionConsumer::toCodeCompleteStrings() {
+  std::vector<StringRef> CompletionStrings;
+  for (auto Res : Results) {
+    switch (Res.Kind) {
+    case CodeCompletionResult::RK_Declaration:
+      if (auto *ID = Res.Declaration->getIdentifier()) {
+        CompletionStrings.push_back(ID->getName());
+      }
+      // std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
+      // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
+      //   std::cout << "[completion] hello world " << VD->getName().str() << "\n";
+      // }
+      break;
+    default:
+      break;
+    }
+  }
+  return CompletionStrings;
 }
 
 ReplListCompleter::ReplListCompleter(clang::GlobalEnv &env, clang::Interpreter& Interp) : env(env), Interp(Interp){
@@ -90,6 +112,9 @@ ReplListCompleter::ReplListCompleter(clang::GlobalEnv &env, clang::Interpreter& 
 std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::StringRef Buffer,
                                                                         size_t Pos) const{
   std::vector<llvm::LineEditor::Completion> Comps;
+  auto AllInput = Interp.getAllInput();
+  auto Nlines = std::count(AllInput.begin(), AllInput.end(), '\n') + 1;
+  std::cout << "\n" << Nlines << " " << Pos << "\n";
   // first wew look for a space
   // if space is not found from right, then use the whole typed string
   // Otherwise, use Buffer[found_idx:] to search for completion candidates.

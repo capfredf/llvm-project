@@ -110,6 +110,8 @@ createArgs(std::vector<const char *> &ClangArgv) {
   // FIXME: Print proper driver diagnostics if the driver flags are wrong.
   // We do C++ by default; append right after argv[0] if no "-x" given
   //ClangArgv.insert(ClangArgv.end(), "-Xclang");
+  ClangArgv.insert(ClangArgv.end(), "-Xclang");
+  ClangArgv.insert(ClangArgv.end(), "-fincremental-extensions");
   //ClangArgv.insert(ClangArgv.end(), "-code-completion-at=/home/capfredf/tmp/hello_world.cpp:7:3");
   ClangArgv.insert(ClangArgv.end(), "-c");
 

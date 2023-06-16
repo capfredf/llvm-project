@@ -362,6 +362,7 @@ IncrementalParser::Parse(llvm::StringRef input) {
   if (std::unique_ptr<llvm::Module> M = GenModule())
     PTU->TheModule = std::move(M);
 
+  AllInput = AllInput + "\n" + input.str();
   return PTU;
 }
 

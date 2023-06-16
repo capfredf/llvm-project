@@ -136,6 +136,8 @@ public:
 
   Expr *SynthesizeExpr(Expr *E);
 
+  std::string getAllInput() const;
+
 private:
   size_t getEffectivePTUSize() const;
 

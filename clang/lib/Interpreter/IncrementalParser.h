@@ -60,6 +60,8 @@ protected:
   IncrementalParser();
 
 public:
+  std::string AllInput;
+
   IncrementalParser(Interpreter &Interp,
                     std::unique_ptr<CompilerInstance> Instance,
                     llvm::LLVMContext &LLVMCtx, llvm::Error &Err);

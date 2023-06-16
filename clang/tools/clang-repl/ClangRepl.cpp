@@ -96,9 +96,6 @@ int main(int argc, const char **argv) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
 
-  capfredf_test(ClangArgv);
-  return EXIT_SUCCESS;
-
   if (OptHostSupportsJit) {
     auto J = llvm::orc::LLJITBuilder().create();
     if (J)
@@ -145,118 +142,89 @@ int main(int argc, const char **argv) {
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  // auto &FrontendOpts = CI->getFrontendOpts();
-  CI->getLangOpts().SpellChecking = false;
-  CI->getLangOpts().DelayedTemplateParsing = false;
-  auto FN = "/home/capfredf/tmp/hello_world.cpp";
-  std::ifstream FInput(FN);
-  std::stringstream InputStram;
-  InputStram << FInput.rdbuf();
-  std::string Content = InputStram.str();
 
-  std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
+  std::unique_ptr<clang::Interpreter> Interp;
+  if (CudaEnabled) {
+    Interp = ExitOnErr(
+        clang::Interpreter::createWithCUDA(std::move(CI), std::move(DeviceCI)));
 
-  CI->getPreprocessorOpts().addRemappedFile(CI->getFrontendOpts().Inputs[0].getFile(), Buffer.get());
-  CI->getPreprocessorOpts().SingleFileParseMode = true;
+    if (CudaPath.empty()) {
+      ExitOnErr(Interp->LoadDynamicLibrary("libcudart.so"));
+    } else {
+      auto CudaRuntimeLibPath = CudaPath + "/lib/libcudart.so";
+      ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
+    }
+  } else
+    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
 
-  Buffer.release();
-
-  clang::SyntaxOnlyAction Action;
-
-  Action.BeginSourceFile(*CI, CI->getFrontendOpts().Inputs[0]);
-  if (llvm::Error Err = Action.Execute()) {
-    std::cout << "failed" << "\n";
-    return EXIT_FAILURE;
+  for (const std::string &input : OptInputs) {
+    if (auto Err = Interp->ParseAndExecute(input))
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
   }
-  Action.EndSourceFile();
+
+  bool HasError = false;
 
 
+  if (OptInputs.empty()) {
+    llvm::LineEditor LE("clang-repl");
+    // FIXME: Add LE.setListCompleter
+    std::string Input;
+    clang::GlobalEnv GEnv;
+    LE.setListCompleter(clang::ReplListCompleter(GEnv, *Interp));
+    while (std::optional<std::string> Line = LE.readLine()) {
+      llvm::StringRef L = *Line;
+      L = L.trim();
+      if (L.endswith("\\")) {
+        // FIXME: Support #ifdef X \ ...
+        Input += L.drop_back(1);
+        LE.setPrompt("clang-repl...   ");
+        continue;
+      }
 
-  return EXIT_SUCCESS;
+      Input += L;
+      if (Input == R"(%quit)") {
+        break;
+      } else if (Input == R"(%undo)") {
+        if (auto Err = Interp->Undo()) {
+          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+          HasError = true;
+        }
+      } else if (Input.rfind("%lib ", 0) == 0) {
+        if (auto Err = Interp->LoadDynamicLibrary(Input.data() + 5)) {
+          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+          HasError = true;
+        }
+      } else {
+        auto PTU = Interp->Parse(Input);
+        if (!PTU) {
+          llvm::logAllUnhandledErrors(std::move(PTU.takeError()), llvm::errs(), "error: ");
+          HasError = true;
+        }
+        else {
+          for (clang::Decl* D : (*PTU).TUPart->decls()) {
+            if (llvm::isa<clang::VarDecl>(D)) {
+              GEnv.extend(llvm::cast<clang::VarDecl>(D)->getName());
+            }
+            else {
+              std::cout<<D->getDeclKindName()<<"\n";
+            }
+          }
+          if (auto Err = Interp->Execute(*PTU)) {
+            llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+            HasError = true;
+          }
+        }
+      }
 
-
-  // std::unique_ptr<clang::Interpreter> Interp;
-  // if (CudaEnabled) {
-  //   Interp = ExitOnErr(
-  //       clang::Interpreter::createWithCUDA(std::move(CI), std::move(DeviceCI)));
-
-  //   if (CudaPath.empty()) {
-  //     ExitOnErr(Interp->LoadDynamicLibrary("libcudart.so"));
-  //   } else {
-  //     auto CudaRuntimeLibPath = CudaPath + "/lib/libcudart.so";
-  //     ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
-  //   }
-  // } else
-  //   Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
-
-  // for (const std::string &input : OptInputs) {
-  //   if (auto Err = Interp->ParseAndExecute(input))
-  //     llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  // }
-
-  // bool HasError = false;
-
-
-  // if (OptInputs.empty()) {
-  //   llvm::LineEditor LE("clang-repl");
-  //   // FIXME: Add LE.setListCompleter
-  //   std::string Input;
-  //   clang::GlobalEnv GEnv;
-  //   LE.setListCompleter(clang::ReplListCompleter(GEnv));
-  //   while (std::optional<std::string> Line = LE.readLine()) {
-  //     llvm::StringRef L = *Line;
-  //     L = L.trim();
-  //     if (L.endswith("\\")) {
-  //       // FIXME: Support #ifdef X \ ...
-  //       Input += L.drop_back(1);
-  //       LE.setPrompt("clang-repl...   ");
-  //       continue;
-  //     }
-
-  //     Input += L;
-  //     if (Input == R"(%quit)") {
-  //       break;
-  //     } else if (Input == R"(%undo)") {
-  //       if (auto Err = Interp->Undo()) {
-  //         llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  //         HasError = true;
-  //       }
-  //     } else if (Input.rfind("%lib ", 0) == 0) {
-  //       if (auto Err = Interp->LoadDynamicLibrary(Input.data() + 5)) {
-  //         llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  //         HasError = true;
-  //       }
-  //     } else {
-  //       auto PTU = Interp->Parse(Input);
-  //       if (!PTU) {
-  //         llvm::logAllUnhandledErrors(std::move(PTU.takeError()), llvm::errs(), "error: ");
-  //         HasError = true;
-  //       }
-  //       else {
-  //         for (clang::Decl* D : (*PTU).TUPart->decls()) {
-  //           if (llvm::isa<clang::VarDecl>(D)) {
-  //             GEnv.extend(llvm::cast<clang::VarDecl>(D)->getName());
-  //           }
-  //           else {
-  //             std::cout<<D->getDeclKindName()<<"\n";
-  //           }
-  //         }
-  //         if (auto Err = Interp->Execute(*PTU)) {
-  //           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  //           HasError = true;
-  //         }
-  //       }
-  //     }
-
-  //     Input = "";
-  //     LE.setPrompt("clang-repl> ");
-  //   }
-  // }
+      Input = "";
+      LE.setPrompt("clang-repl> ");
+    }
+  }
 
   // Our error handler depends on the Diagnostics object, which we're
   // potentially about to delete. Uninstall the handler now so that any
   // later errors use the default handling behavior instead.
-  // llvm::remove_fatal_error_handler();
+  llvm::remove_fatal_error_handler();
 
-  // return checkDiagErrors(Interp->getCompilerInstance(), HasError);
+  return checkDiagErrors(Interp->getCompilerInstance(), HasError);
 }
