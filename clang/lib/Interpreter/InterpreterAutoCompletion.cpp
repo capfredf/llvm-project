@@ -56,9 +56,9 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       if (auto *ID = Result.Declaration->getIdentifier()) {
+        std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
         Results.push_back(Result);
       }
-      // std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
       // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
       //   std::cout << "[completion] hello world " << VD->getName().str() << "\n";
       // }

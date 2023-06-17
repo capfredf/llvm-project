@@ -96,6 +96,9 @@ int main(int argc, const char **argv) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
 
+  capfredf_test(ClangArgv);
+  return EXIT_SUCCESS;
+
   if (OptHostSupportsJit) {
     auto J = llvm::orc::LLJITBuilder().create();
     if (J)
