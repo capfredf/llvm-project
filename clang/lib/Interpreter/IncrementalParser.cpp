@@ -305,6 +305,60 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   return LastPTU;
 }
 
+void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input) {
+  Preprocessor &PP = CI->getPreprocessor();
+  assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
+
+  std::ostringstream SourceName;
+  SourceName << "input_line_" << InputCount++;
+
+  // Create an uninitialized memory buffer, copy code in and append "\n"
+  size_t InputSize = input.size(); // don't include trailing 0
+  // MemBuffer size should *not* include terminating zero
+  std::unique_ptr<llvm::MemoryBuffer> MB(
+                                         llvm::WritableMemoryBuffer::getNewUninitMemBuffer(InputSize + 1,
+                                                                                           SourceName.str()));
+  char *MBStart = const_cast<char *>(MB->getBufferStart());
+  memcpy(MBStart, input.data(), InputSize);
+  MBStart[InputSize] = '\n';
+
+  SourceManager &SM = CI->getSourceManager();
+
+  // FIXME: Create SourceLocation, which will allow clang to order the overload
+  // candidates for example
+  SourceLocation NewLoc = SM.getLocForStartOfFile(SM.getMainFileID());
+
+  // Create FileID for the current buffer.
+  // FileID FID = SM.createFileID(std::move(MB), SrcMgr::C_User, /*LoadedID=*/0,
+  //                              /*LoadedOffset=*/0, NewLoc);
+
+  const clang::FileEntry* FE
+    = SM.getFileManager().getVirtualFile(SourceName.str(), InputSize,
+                                         0 /* mod time*/);
+  SM.overrideFileContents(FE, std::move(MB));
+  FileID FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
+
+  // auto Entry = PP.getFileManager().getFile(DummyFN);
+  // if (!Entry) {
+  //   std::cout << "Entry invalid \n";
+  //   return;
+  // }
+  PP.SetCodeCompletionPoint(FE, 7, 3);
+
+
+  // NewLoc only used for diags.
+  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, NewLoc))
+    return;
+
+  auto PTU = ParseOrWrapTopLevelDecl();
+  if (!PTU) {
+    PTU.takeError();
+    return;
+  }
+
+  return;
+}
+
 llvm::Expected<PartialTranslationUnit &>
 IncrementalParser::Parse(llvm::StringRef input) {
   Preprocessor &PP = CI->getPreprocessor();

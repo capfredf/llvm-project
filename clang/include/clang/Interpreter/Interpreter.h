@@ -100,6 +100,7 @@ public:
                  std::unique_ptr<CompilerInstance> DCI);
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
+  void CodeComplete(llvm::StringRef Input);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 

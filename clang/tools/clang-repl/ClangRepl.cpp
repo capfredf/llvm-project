@@ -96,8 +96,8 @@ int main(int argc, const char **argv) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
 
-  capfredf_test(ClangArgv);
-  return EXIT_SUCCESS;
+  // capfredf_test(ClangArgv);
+  // return EXIT_SUCCESS;
 
   if (OptHostSupportsJit) {
     auto J = llvm::orc::LLJITBuilder().create();
@@ -167,6 +167,8 @@ int main(int argc, const char **argv) {
 
   bool HasError = false;
 
+  capfredf_test2(*(Interp.get()));
+  return EXIT_SUCCESS;
 
   if (OptInputs.empty()) {
     llvm::LineEditor LE("clang-repl");

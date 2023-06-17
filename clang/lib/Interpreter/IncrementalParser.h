@@ -74,6 +74,7 @@ public:
   ///\returns a \c PartialTranslationUnit which holds information about the
   /// \c TranslationUnitDecl and \c llvm::Module corresponding to the input.
   virtual llvm::Expected<PartialTranslationUnit &> Parse(llvm::StringRef Input);
+  void ParseForCodeCompletion(llvm::StringRef Input);
 
   /// Uses the CodeGenModule mangled name cache and avoids recomputing.
   ///\returns the mangled name of a \c GD.

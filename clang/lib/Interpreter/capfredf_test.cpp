@@ -4,6 +4,7 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Interpreter/InterpreterAutoCompletion.h"
@@ -300,4 +301,54 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
     return;
   }
   Action.EndSourceFile();
+}
+
+
+void capfredf_test2(clang::Interpreter &Interp) {
+  auto* CConsumer = new clang::ReplCompletionConsumer();
+  clang::SyntaxOnlyAction Action;
+  auto* FN = "/home/capfredf/tmp/hello_world.cpp";
+  auto* DummyFN = "<<< inputs >>>";
+  std::ifstream FInput(FN);
+  std::stringstream InputStram;
+  InputStram << FInput.rdbuf();
+  std::string Content = InputStram.str();
+
+  std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
+
+  auto* Clang = const_cast<clang::CompilerInstance*>(Interp.getCompilerInstance());
+  // Clang->LoadRequestedPlugins();
+  Clang->getPreprocessorOpts().addRemappedFile(DummyFN, Buffer.get());
+  Clang->getPreprocessorOpts().SingleFileParseMode = true;
+
+  Clang->getLangOpts().SpellChecking = false;
+  Clang->getLangOpts().DelayedTemplateParsing = false;
+
+  auto &FrontendOpts = Clang->getFrontendOpts();
+  clang::Preprocessor& PP = Clang->getPreprocessor();
+  FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
+  // FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
+  // FrontendOpts.CodeCompletionAt.Line = 7;
+  // FrontendOpts.CodeCompletionAt.Column = 3;
+
+
+  // Clang->setInvocation(std::move(CI));
+  // Clang->createDiagnostics(&D, false);
+  // Clang->getPreprocessorOpts().SingleFileParseMode = true;;
+  Clang->setCodeCompletionConsumer(CConsumer);
+  Clang->getSema().CodeCompleter = CConsumer;
+  // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
+  //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
+
+  Interp.CodeComplete(Content);
+  // llvm::install_fatal_error_handler(LLVMErrorHandler,
+  //                                   static_cast<void *>(&Clang->getDiagnostics()));
+  // Buffer.release();
+
+  // Action.BeginSourceFile(*Clang, Clang->getFrontendOpts().Inputs[0]);
+  // if (llvm::Error Err = Action.Execute()) {
+  //   std::cout << "failed" << "\n";
+  //   return;
+  // }
+  // Action.EndSourceFile();
 }

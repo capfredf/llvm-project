@@ -742,6 +742,10 @@ std::string Interpreter::getAllInput() const {
   return IncrParser->AllInput;
 }
 
+void Interpreter::CodeComplete(llvm::StringRef Input){
+  IncrParser->ParseForCodeCompletion(Input);
+}
+
 // Temporary rvalue struct that need special care.
 REPL_EXTERNAL_VISIBILITY void *
 __clang_Interpreter_SetValueWithAlloc(void *This, void *OutVal,
