@@ -352,3 +352,18 @@ void capfredf_test2(clang::Interpreter &Interp) {
   // }
   // Action.EndSourceFile();
 }
+
+
+llvm::Expected<bool>
+capfredf_test3(clang::IncrementalCompilerBuilder& CB) {
+  auto CIOrErr = CB.CreateCpp();
+  if (auto Err = CIOrErr.takeError()) {
+    return std::move(Err);
+  }
+  auto InterpOrErr = clang::Interpreter::create(std::move(*CIOrErr));
+  if (auto Err = InterpOrErr.takeError()) {
+    return std::move(Err);
+  }
+  capfredf_test2(**InterpOrErr);
+  return true;
+}

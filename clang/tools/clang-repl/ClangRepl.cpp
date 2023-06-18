@@ -167,7 +167,10 @@ int main(int argc, const char **argv) {
 
   bool HasError = false;
 
-  capfredf_test2(*(Interp.get()));
+  if (auto Err = capfredf_test3(CB)) {
+    llvm::logAllUnhandledErrors(std::move(Err.takeError()), llvm::errs(), "error: ");
+    return EXIT_FAILURE;
+  };
   return EXIT_SUCCESS;
 
   if (OptInputs.empty()) {

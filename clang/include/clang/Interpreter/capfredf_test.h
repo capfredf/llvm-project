@@ -4,4 +4,5 @@
 #include "clang/Interpreter/Interpreter.h"
 void capfredf_test(std::vector<const char *> &ArgStrs);
 void capfredf_test2(clang::Interpreter &Interp);
+llvm::Expected<bool> capfredf_test3(clang::IncrementalCompilerBuilder& CB);
 #endif
