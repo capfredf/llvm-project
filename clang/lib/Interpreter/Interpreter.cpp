@@ -343,6 +343,11 @@ size_t Interpreter::getEffectivePTUSize() const {
   return PTUs.size() - InitPTUSize;
 }
 
+void Interpreter::startRecordingInput() {
+  IncrParser->IsRecorded = true;
+}
+
+
 llvm::Expected<PartialTranslationUnit &>
 Interpreter::Parse(llvm::StringRef Code) {
   // If we have a device parser, parse it first.
@@ -742,8 +747,8 @@ std::string Interpreter::getAllInput() const {
   return IncrParser->AllInput;
 }
 
-void Interpreter::CodeComplete(llvm::StringRef Input){
-  IncrParser->ParseForCodeCompletion(Input);
+void Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line){
+  IncrParser->ParseForCodeCompletion(Input, Col, Line);
 }
 
 // Temporary rvalue struct that need special care.

@@ -93,6 +93,7 @@ class Interpreter {
 
 public:
   ~Interpreter();
+  void startRecordingInput();
   static llvm::Expected<std::unique_ptr<Interpreter>>
   create(std::unique_ptr<CompilerInstance> CI);
   static llvm::Expected<std::unique_ptr<Interpreter>>
@@ -100,7 +101,7 @@ public:
                  std::unique_ptr<CompilerInstance> DCI);
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
-  void CodeComplete(llvm::StringRef Input);
+  void CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 

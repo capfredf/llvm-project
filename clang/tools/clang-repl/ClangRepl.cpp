@@ -180,18 +180,19 @@ int main(int argc, const char **argv) {
 
   bool HasError = false;
 
-  if (auto Err = capfredf_test3(CB)) {
-    llvm::logAllUnhandledErrors(std::move(Err.takeError()), llvm::errs(), "error: ");
-    return EXIT_FAILURE;
-  };
-  return EXIT_SUCCESS;
+  // if (auto Err = capfredf_test3(CB)) {
+  //   llvm::logAllUnhandledErrors(std::move(Err.takeError()), llvm::errs(), "error: ");
+  //   return EXIT_FAILURE;
+  // };
+  // return EXIT_SUCCESS;
 
   if (OptInputs.empty()) {
+    Interp->startRecordingInput();
     llvm::LineEditor LE("clang-repl");
     // FIXME: Add LE.setListCompleter
     std::string Input;
     clang::GlobalEnv GEnv;
-    LE.setListCompleter(clang::ReplListCompleter(GEnv, *Interp));
+    LE.setListCompleter(clang::ReplListCompleter(CB, *Interp));
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
       L = L.trim();

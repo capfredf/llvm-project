@@ -1,6 +1,8 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/InterpreterAutoCompletion.h"
 #include "clang/Sema/CodeCompleteOptions.h"
+#include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Sema/Sema.h"
 #include <iostream>
 
 namespace clang{
@@ -31,7 +33,7 @@ ReplCompletionConsumer::ReplCompletionConsumer() : CodeCompleteConsumer(getClang
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
-
+  std::cout << "Start ProcessCodeComplete\n";
   for (unsigned I = 0; I < NumResults; ++I) {
     auto &Result = InResults[I];
     // Class members that are shadowed by subclasses are usually noise.
@@ -106,15 +108,61 @@ std::vector<StringRef> ReplCompletionConsumer::toCodeCompleteStrings() {
   return CompletionStrings;
 }
 
-ReplListCompleter::ReplListCompleter(clang::GlobalEnv &env, clang::Interpreter& Interp) : env(env), Interp(Interp){
+llvm::Expected<std::unique_ptr<Interpreter>>
+recreateInterpreter(clang::IncrementalCompilerBuilder& CB) {
+  auto CIOrErr = CB.CreateCpp();
+  if (auto Err = CIOrErr.takeError()) {
+    return std::move(Err);
+  }
+  auto InterpOrErr = clang::Interpreter::create(std::move(*CIOrErr));
+  if (auto Err = InterpOrErr.takeError()) {
+    return std::move(Err);
+  }
+  return std::move(*InterpOrErr);
 }
+
 
 std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::StringRef Buffer,
                                                                         size_t Pos) const{
   std::vector<llvm::LineEditor::Completion> Comps;
-  auto AllInput = Interp.getAllInput();
-  auto Nlines = std::count(AllInput.begin(), AllInput.end(), '\n') + 1;
-  std::cout << "\n" << Nlines << " " << Pos << "\n";
+  auto Interp = recreateInterpreter(CB);
+  if (!Interp) {
+    return Comps;
+  }
+
+
+  auto* CConsumer = new clang::ReplCompletionConsumer();
+
+  auto* Clang = const_cast<CompilerInstance*>((*Interp)->getCompilerInstance());
+  Clang->getPreprocessorOpts().SingleFileParseMode = true;
+
+  Clang->getLangOpts().SpellChecking = false;
+  Clang->getLangOpts().DelayedTemplateParsing = false;
+
+  auto &FrontendOpts = Clang->getFrontendOpts();
+  // clang::Preprocessor& PP = Clang->getPreprocessor();
+  FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
+  // FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
+  // FrontendOpts.CodeCompletionAt.Line = 7;
+  // FrontendOpts.CodeCompletionAt.Column = 3;
+
+
+  // Clang->setInvocation(std::move(CI));
+  // Clang->createDiagnostics(&D, false);
+  // Clang->getPreprocessorOpts().SingleFileParseMode = true;;
+  Clang->setCodeCompletionConsumer(CConsumer);
+  Clang->getSema().CodeCompleter = CConsumer;
+  // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
+  //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
+
+  std::string AllCodeText = MainInterp.getAllInput() + "\n" + Buffer.str();
+  auto Lines = std::count(AllCodeText.begin(), AllCodeText.end(), '\n');
+
+  (*Interp)->CodeComplete(AllCodeText, Pos + 1, Lines);
+
+  // auto AllInput = (*Interp)->getAllInput();
+  // auto Nlines = std::count(AllInput.begin(), AllInput.end(), '\n') + 1;
+  // std::cout << "\n" << Nlines << " " << Pos << "\n";
   // first wew look for a space
   // if space is not found from right, then use the whole typed string
   // Otherwise, use Buffer[found_idx:] to search for completion candidates.

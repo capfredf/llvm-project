@@ -44,9 +44,9 @@ private:
 
 
 struct ReplListCompleter {
-  GlobalEnv &env;
-  Interpreter &Interp;
-  ReplListCompleter(GlobalEnv &env, Interpreter &Interp);
+  IncrementalCompilerBuilder& CB;
+  Interpreter& MainInterp;
+  ReplListCompleter(IncrementalCompilerBuilder& CB, Interpreter& Interp) : CB(CB), MainInterp(Interp) {};
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer, size_t Pos) const;
 };
 

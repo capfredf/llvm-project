@@ -305,12 +305,12 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   return LastPTU;
 }
 
-void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input) {
+void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input, size_t Col, size_t Line) {
   Preprocessor &PP = CI->getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
 
   std::ostringstream SourceName;
-  SourceName << "input_line_" << InputCount++;
+  SourceName << "input_line_" << InputCount;
 
   // Create an uninitialized memory buffer, copy code in and append "\n"
   size_t InputSize = input.size(); // don't include trailing 0
@@ -343,7 +343,7 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input) {
   //   std::cout << "Entry invalid \n";
   //   return;
   // }
-  PP.SetCodeCompletionPoint(FE, 7, 3);
+  PP.SetCodeCompletionPoint(FE, Line, Col);
 
 
   // NewLoc only used for diags.
@@ -416,7 +416,13 @@ IncrementalParser::Parse(llvm::StringRef input) {
   if (std::unique_ptr<llvm::Module> M = GenModule())
     PTU->TheModule = std::move(M);
 
-  AllInput = AllInput + "\n" + input.str();
+  if (IsRecorded) {
+    if (AllInput.empty()) {
+      AllInput = input.str();
+    } else {
+      AllInput = AllInput + "\n" + input.str();
+    }
+  }
   return PTU;
 }
 
