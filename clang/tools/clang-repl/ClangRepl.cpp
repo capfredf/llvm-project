@@ -43,6 +43,9 @@ static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
                                               llvm::cl::Hidden);
 static llvm::cl::list<std::string> OptInputs(llvm::cl::Positional,
                                              llvm::cl::desc("[code to run]"));
+static llvm::cl::opt<std::string> OptTestCodeCompletion("code-completion-at", llvm::cl::Hidden);
+static llvm::cl::opt<std::string> OptTestCodeCompletionFun("code-completion-at-fun", llvm::cl::Hidden);
+
 
 static void LLVMErrorHandler(void *UserData, const char *Message,
                              bool GenCrashDiag) {
@@ -96,8 +99,18 @@ int main(int argc, const char **argv) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
 
-  // capfredf_test(ClangArgv);
-  // return EXIT_SUCCESS;
+  if (!OptTestCodeCompletion.empty()) {
+    llvm::StringRef CodeCompletionArgs(OptTestCodeCompletion);
+    llvm::StringRef FN, RawCol, RawLine;
+    auto P = CodeCompletionArgs.split(":");
+    FN = P.first;
+    std::tie(RawLine, RawCol) = P.second.split(":");
+    size_t Line = std::stoi(RawLine.str());
+    size_t Col = std::stoi(RawCol.str());
+    capfredf_test(ClangArgv, FN.str(), Line, Col);
+    return EXIT_SUCCESS;
+  }
+
 
   if (OptHostSupportsJit) {
     auto J = llvm::orc::LLJITBuilder().create();

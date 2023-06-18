@@ -247,10 +247,9 @@ static void LLVMErrorHandler(void *UserData, const char *Message,
 }
 
 
-void capfredf_test(std::vector<const char *> &ArgStrs) {
+void capfredf_test(std::vector<const char *> &ArgStrs, std::string FN, size_t Line, size_t Col) {
   auto CConsumer = std::make_unique<clang::ReplCompletionConsumer>();
   clang::SyntaxOnlyAction Action;
-  auto* FN = "/home/capfredf/tmp/hello_world.cpp";
   auto* DummyFN = "<<< inputs >>>";
   std::ifstream FInput(FN);
   std::stringstream InputStram;
@@ -280,8 +279,8 @@ void capfredf_test(std::vector<const char *> &ArgStrs) {
   auto &FrontendOpts = Clang->getFrontendOpts();
   FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
   FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
-  FrontendOpts.CodeCompletionAt.Line = 7;
-  FrontendOpts.CodeCompletionAt.Column = 3;
+  FrontendOpts.CodeCompletionAt.Line = Line;
+  FrontendOpts.CodeCompletionAt.Column = Col;
 
 
   // Clang->setInvocation(std::move(CI));
@@ -340,7 +339,7 @@ void capfredf_test2(clang::Interpreter &Interp) {
   // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
   //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
 
-  Interp.CodeComplete(Content);
+  Interp.CodeComplete(Content, 3, 7);
   // llvm::install_fatal_error_handler(LLVMErrorHandler,
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   // Buffer.release();
