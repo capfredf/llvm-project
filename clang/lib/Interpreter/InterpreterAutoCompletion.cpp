@@ -4,8 +4,14 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/Sema.h"
 #include <iostream>
+#include <sstream>
+#include "Logger.h"
+#include <format>
+
 
 namespace clang{
+Logger CompletionLogger{"completion.log"};
+
 void GlobalEnv::extend(llvm::StringRef name) {
   names.push_back(name);
 }
@@ -33,7 +39,7 @@ ReplCompletionConsumer::ReplCompletionConsumer() : CodeCompleteConsumer(getClang
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
-  // std::cout << "Start ProcessCodeComplete\n";
+  CompletionLogger.debug("Start ProcessCodeComplete");
   for (unsigned I = 0; I < NumResults; ++I) {
     auto &Result = InResults[I];
     // Class members that are shadowed by subclasses are usually noise.
@@ -58,6 +64,10 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       if (auto *ID = Result.Declaration->getIdentifier()) {
+        std::ostringstream stringStream;
+        stringStream << "Decl ID:";
+        stringStream << ID->getName().str();
+        CompletionLogger.debug(stringStream.str());
         // std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
         Results.push_back(Result);
       }
