@@ -156,7 +156,7 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
   //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
 
   std::string AllCodeText = MainInterp.getAllInput() + "\n" + Buffer.str();
-  auto Lines = std::count(AllCodeText.begin(), AllCodeText.end(), '\n');
+  auto Lines = std::count(AllCodeText.begin(), AllCodeText.end(), '\n') + 1;
 
   (*Interp)->CodeComplete(AllCodeText, Pos + 1, Lines);
 
