@@ -44,7 +44,7 @@ static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
 static llvm::cl::list<std::string> OptInputs(llvm::cl::Positional,
                                              llvm::cl::desc("[code to run]"));
 static llvm::cl::opt<std::string> OptTestCodeCompletion("code-completion-at", llvm::cl::Hidden);
-static llvm::cl::opt<std::string> OptTestCodeCompletionFun("code-completion-at-fun", llvm::cl::Hidden);
+static llvm::cl::opt<unsigned> OptTestCodeCompletionFun("code-completion-at-fun", llvm::cl::Hidden);
 
 
 static void LLVMErrorHandler(void *UserData, const char *Message,
@@ -107,7 +107,26 @@ int main(int argc, const char **argv) {
     std::tie(RawLine, RawCol) = P.second.split(":");
     size_t Line = std::stoi(RawLine.str());
     size_t Col = std::stoi(RawCol.str());
-    capfredf_test(ClangArgv, FN.str(), Line, Col);
+    int idx = OptTestCodeCompletionFun;
+    switch (idx) {
+    case 3: {
+      clang::IncrementalCompilerBuilder CB1;
+      CB1.SetCompilerArgs(ClangArgv);
+      ExitOnErr(capfredf_test3(CB1, FN.str(), Line, Col));
+      break;
+    }
+    case 2: {
+      clang::IncrementalCompilerBuilder CB1;
+      CB1.SetCompilerArgs(ClangArgv);
+      std::unique_ptr<clang::CompilerInstance> CI = ExitOnErr(CB1.CreateCpp());
+      auto Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
+      capfredf_test2(*Interp, FN.str(), Line, Col);
+      break;
+    }
+    default:
+      capfredf_test(ClangArgv, FN.str(), Line, Col);
+      break;
+    }
     return EXIT_SUCCESS;
   }
 

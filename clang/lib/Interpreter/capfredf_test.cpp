@@ -303,10 +303,9 @@ void capfredf_test(std::vector<const char *> &ArgStrs, std::string FN, size_t Li
 }
 
 
-void capfredf_test2(clang::Interpreter &Interp) {
+void capfredf_test2(clang::Interpreter &Interp, std::string FN, size_t Line, size_t Col) {
   auto* CConsumer = new clang::ReplCompletionConsumer();
   clang::SyntaxOnlyAction Action;
-  auto* FN = "/home/capfredf/tmp/hello_world.cpp";
   auto* DummyFN = "<<< inputs >>>";
   std::ifstream FInput(FN);
   std::stringstream InputStram;
@@ -324,7 +323,7 @@ void capfredf_test2(clang::Interpreter &Interp) {
   Clang->getLangOpts().DelayedTemplateParsing = false;
 
   auto &FrontendOpts = Clang->getFrontendOpts();
-  clang::Preprocessor& PP = Clang->getPreprocessor();
+  // clang::Preprocessor& PP = Clang->getPreprocessor();
   FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
   // FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
   // FrontendOpts.CodeCompletionAt.Line = 7;
@@ -339,7 +338,7 @@ void capfredf_test2(clang::Interpreter &Interp) {
   // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
   //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
 
-  Interp.CodeComplete(Content, 3, 7);
+  Interp.CodeComplete(Content, Col, Line);
   // llvm::install_fatal_error_handler(LLVMErrorHandler,
   //                                   static_cast<void *>(&Clang->getDiagnostics()));
   // Buffer.release();
@@ -354,7 +353,7 @@ void capfredf_test2(clang::Interpreter &Interp) {
 
 
 llvm::Expected<bool>
-capfredf_test3(clang::IncrementalCompilerBuilder& CB) {
+capfredf_test3(clang::IncrementalCompilerBuilder& CB, std::string FN, size_t Line, size_t Col) {
   auto CIOrErr = CB.CreateCpp();
   if (auto Err = CIOrErr.takeError()) {
     return std::move(Err);
@@ -363,6 +362,6 @@ capfredf_test3(clang::IncrementalCompilerBuilder& CB) {
   if (auto Err = InterpOrErr.takeError()) {
     return std::move(Err);
   }
-  capfredf_test2(**InterpOrErr);
+  capfredf_test2(**InterpOrErr, FN, Line, Col);
   return true;
 }
