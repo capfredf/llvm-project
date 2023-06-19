@@ -35,11 +35,12 @@ struct ReplCompletionConsumer : public CodeCompleteConsumer {
     return CCTUInfo;
   }
 
+  std::vector<StringRef> toCodeCompleteStrings();
+
 private:
   std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
   CodeCompletionTUInfo CCTUInfo;
   std::vector<CodeCompletionResult> Results;
-  std::vector<StringRef> toCodeCompleteStrings();
 };
 
 

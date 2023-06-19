@@ -33,7 +33,7 @@ ReplCompletionConsumer::ReplCompletionConsumer() : CodeCompleteConsumer(getClang
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
-  std::cout << "Start ProcessCodeComplete\n";
+  // std::cout << "Start ProcessCodeComplete\n";
   for (unsigned I = 0; I < NumResults; ++I) {
     auto &Result = InResults[I];
     // Class members that are shadowed by subclasses are usually noise.
@@ -58,7 +58,7 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       if (auto *ID = Result.Declaration->getIdentifier()) {
-        std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
+        // std::cout << "[completion] Decl ID: " << ID->getName().str() << "\n";
         Results.push_back(Result);
       }
       // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
@@ -169,24 +169,24 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
 
 
 
-  // size_t space_pos = Buffer.rfind(" ");
-  // llvm::StringRef s;
-  // if (space_pos == llvm::StringRef::npos) {
-  //   s = Buffer;
-  // } else {
-  //   s = Buffer.substr(space_pos + 1);
-  // }
+  size_t space_pos = Buffer.rfind(" ");
+  llvm::StringRef s;
+  if (space_pos == llvm::StringRef::npos) {
+    s = Buffer;
+  } else {
+    s = Buffer.substr(space_pos + 1);
+  }
 
   // if s is empty, return an empty vector;
   // if (s.empty()) {
   //   return Comps;
   // }
 
-  // for (auto c : env.names) {
-  //   if (c.startswith(s)) {
-  //     Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
-  //   }
-  // }
+  for (auto c : CConsumer->toCodeCompleteStrings()) {
+    if (c.startswith(s)) {
+      Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
+    }
+  }
   return Comps;
 }
 } // namespace clang
