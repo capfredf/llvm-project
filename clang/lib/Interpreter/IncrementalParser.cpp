@@ -27,6 +27,7 @@
 #include "llvm/Support/Timer.h"
 
 #include <sstream>
+#include <iostream>
 
 namespace clang {
 
@@ -417,6 +418,9 @@ IncrementalParser::Parse(llvm::StringRef input) {
     PTU->TheModule = std::move(M);
 
   if (IsRecorded) {
+    for (clang::Decl* D : (*PTU).TUPart->decls()) {
+        std::cout<<D->getDeclKindName()<<"\n";
+    }
     if (AllInput.empty()) {
       AllInput = input.str();
     } else {
