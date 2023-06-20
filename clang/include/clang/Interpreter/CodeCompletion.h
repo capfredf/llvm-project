@@ -15,9 +15,13 @@ namespace clang{
 clang::CodeCompleteOptions getClangCompleteOpts();
 
 
-struct ReplCompletionConsumer : public CodeCompleteConsumer {
-
-  ReplCompletionConsumer();
+class ReplCompletionConsumer : public CodeCompleteConsumer {
+public:
+  ReplCompletionConsumer(std::vector<CodeCompletionResult>& Results) :
+    CodeCompleteConsumer(getClangCompleteOpts()),
+    CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
+    CCTUInfo(CCAllocator),
+    Results(Results){};
   void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                   CodeCompletionResult *InResults,
                                   unsigned NumResults) final;
@@ -29,13 +33,10 @@ struct ReplCompletionConsumer : public CodeCompleteConsumer {
   clang::CodeCompletionTUInfo& getCodeCompletionTUInfo() override {
     return CCTUInfo;
   }
-
-  std::vector<StringRef> toCodeCompleteStrings();
-
 private:
   std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
   CodeCompletionTUInfo CCTUInfo;
-  std::vector<CodeCompletionResult> Results;
+  std::vector<CodeCompletionResult>& Results;
 };
 
 
@@ -44,6 +45,8 @@ struct ReplListCompleter {
   Interpreter& MainInterp;
   ReplListCompleter(IncrementalCompilerBuilder& CB, Interpreter& Interp) : CB(CB), MainInterp(Interp) {};
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer, size_t Pos) const;
+private:
+  std::vector<StringRef> toCodeCompleteStrings(const std::vector<CodeCompletionResult>& Results) const;
 };
 
 }//namespace clang

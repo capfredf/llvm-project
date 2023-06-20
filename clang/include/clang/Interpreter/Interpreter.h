@@ -18,6 +18,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Interpreter/Value.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -38,6 +39,7 @@ namespace clang {
 class CompilerInstance;
 class IncrementalExecutor;
 class IncrementalParser;
+class ReplCompletionConsumer;
 
 /// Create a pre-configured \c CompilerInstance for incremental processing.
 class IncrementalCompilerBuilder {
@@ -80,6 +82,7 @@ class Interpreter {
 
   // An optional parser for CUDA offloading
   std::unique_ptr<IncrementalParser> DeviceParser;
+  std::unique_ptr<ReplCompletionConsumer> CConsumer;
 
   Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
 
@@ -92,16 +95,23 @@ class Interpreter {
   Value LastValue;
 
 public:
+  std::vector<CodeCompletionResult> CompletionResults;
   ~Interpreter();
   void startRecordingInput();
+
   static llvm::Expected<std::unique_ptr<Interpreter>>
   create(std::unique_ptr<CompilerInstance> CI);
+
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                  std::unique_ptr<CompilerInstance> DCI);
+
+  static llvm::Expected<std::unique_ptr<Interpreter>>
+  createForCodeCompletion(IncrementalCompilerBuilder& CB);
+
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
-  void CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
+  std::vector<CodeCompletionResult> CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 

@@ -33,6 +33,7 @@
 #include "clang/Driver/Tool.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
+#include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Value.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/Lookup.h"
@@ -190,6 +191,7 @@ IncrementalCompilerBuilder::CreateCpp() {
   return IncrementalCompilerBuilder::create(Argv);
 }
 
+
 llvm::Expected<std::unique_ptr<CompilerInstance>>
 IncrementalCompilerBuilder::createCuda(bool device) {
   std::vector<const char *> Argv;
@@ -233,9 +235,12 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
   llvm::ErrorAsOutParameter EAO(&Err);
   auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
   TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
+  auto* CConsumer = new ReplCompletionConsumer(CompletionResults);
+  CI->setCodeCompletionConsumer(CConsumer);
   IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
                                                    *TSCtx->getContext(), Err);
 }
+
 
 Interpreter::~Interpreter() {
   if (IncrExecutor) {
@@ -286,6 +291,30 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
   // beginning of the REPL so we have to mark them as 'Irrevocable'.
   Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
   return std::move(Interp);
+}
+
+llvm::Expected<std::unique_ptr<Interpreter>>
+Interpreter::createForCodeCompletion(IncrementalCompilerBuilder &CB) {
+  auto CI = CB.CreateCpp();
+  if (auto Err = CI.takeError()) {
+    return std::move(Err);
+  }
+
+  (*CI)->getPreprocessorOpts().SingleFileParseMode = true;
+
+  (*CI)->getLangOpts().SpellChecking = false;
+  (*CI)->getLangOpts().DelayedTemplateParsing = false;
+
+  // FIXME: The lines below don't seem to be needed.
+  auto &FrontendOpts = (*CI)->getFrontendOpts();
+  FrontendOpts.CodeCompleteOpts = getClangCompleteOpts();
+
+  auto InterpOrErr = clang::Interpreter::create(std::move(*CI));
+  if (auto Err = InterpOrErr.takeError()) {
+    return std::move(Err);
+  }
+  return std::move(*InterpOrErr);
+
 }
 
 llvm::Expected<std::unique_ptr<Interpreter>>
@@ -747,8 +776,9 @@ std::string Interpreter::getAllInput() const {
   return IncrParser->AllInput;
 }
 
-void Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line){
+std::vector<CodeCompletionResult> Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line){
   IncrParser->ParseForCodeCompletion(Input, Col, Line);
+  return CompletionResults;
 }
 
 // Temporary rvalue struct that need special care.

@@ -23,15 +23,6 @@ clang::CodeCompleteOptions getClangCompleteOpts() {
 
 
 
-// ReplCompletionConsumer(llvm::unique_function<void()> ResultsCallback)
-ReplCompletionConsumer::ReplCompletionConsumer() : CodeCompleteConsumer(getClangCompleteOpts()),
-      // CCContext(CodeCompletionContext::CCC_Other),
-      CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
-      CCTUInfo(CCAllocator)
-{
-    // assert(this->ResultsCallback);
-}
-
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
@@ -94,7 +85,7 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
   }
 }
 
-std::vector<StringRef> ReplCompletionConsumer::toCodeCompleteStrings() {
+std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(const std::vector<CodeCompletionResult> &Results) const{
   std::vector<StringRef> CompletionStrings;
   for (auto Res : Results) {
     switch (Res.Kind) {
@@ -114,66 +105,22 @@ std::vector<StringRef> ReplCompletionConsumer::toCodeCompleteStrings() {
   return CompletionStrings;
 }
 
-llvm::Expected<std::unique_ptr<Interpreter>>
-recreateInterpreter(clang::IncrementalCompilerBuilder& CB) {
-  auto CIOrErr = CB.CreateCpp();
-  if (auto Err = CIOrErr.takeError()) {
-    return std::move(Err);
-  }
-  auto InterpOrErr = clang::Interpreter::create(std::move(*CIOrErr));
-  if (auto Err = InterpOrErr.takeError()) {
-    return std::move(Err);
-  }
-  return std::move(*InterpOrErr);
-}
-
 
 std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::StringRef Buffer,
                                                                         size_t Pos) const{
   std::vector<llvm::LineEditor::Completion> Comps;
-  auto Interp = recreateInterpreter(CB);
-  if (!Interp) {
+
+  auto Interp = Interpreter::createForCodeCompletion(CB);
+
+  if (auto Err = Interp.takeError()) {
+    consumeError(std::move(Err));
     return Comps;
   }
 
-
-  auto* CConsumer = new clang::ReplCompletionConsumer();
-
-  auto* Clang = const_cast<CompilerInstance*>((*Interp)->getCompilerInstance());
-  Clang->getPreprocessorOpts().SingleFileParseMode = true;
-
-  Clang->getLangOpts().SpellChecking = false;
-  Clang->getLangOpts().DelayedTemplateParsing = false;
-
-  auto &FrontendOpts = Clang->getFrontendOpts();
-  // clang::Preprocessor& PP = Clang->getPreprocessor();
-  FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
-  // FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
-  // FrontendOpts.CodeCompletionAt.Line = 7;
-  // FrontendOpts.CodeCompletionAt.Column = 3;
-
-
-  // Clang->setInvocation(std::move(CI));
-  // Clang->createDiagnostics(&D, false);
-  // Clang->getPreprocessorOpts().SingleFileParseMode = true;;
-  Clang->setCodeCompletionConsumer(CConsumer);
-  Clang->getSema().CodeCompleter = CConsumer;
-  // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
-  //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
-
-  // Okay, this is just a proved idea that needs to be polished.
   std::string AllCodeText = MainInterp.getAllInput() + "\nvoid dummy(){\n" + Buffer.str() + "}";
   auto Lines = std::count(AllCodeText.begin(), AllCodeText.end(), '\n') + 1;
 
-  (*Interp)->CodeComplete(AllCodeText, Pos + 1, Lines);
-
-  // auto AllInput = (*Interp)->getAllInput();
-  // auto Nlines = std::count(AllInput.begin(), AllInput.end(), '\n') + 1;
-  // std::cout << "\n" << Nlines << " " << Pos << "\n";
-  // first wew look for a space
-  // if space is not found from right, then use the whole typed string
-  // Otherwise, use Buffer[found_idx:] to search for completion candidates.
-
+  auto Results = (*Interp)->CodeComplete(AllCodeText, Pos + 1, Lines);
 
 
   size_t space_pos = Buffer.rfind(" ");
@@ -184,12 +131,8 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
     s = Buffer.substr(space_pos + 1);
   }
 
-  // if s is empty, return an empty vector;
-  // if (s.empty()) {
-  //   return Comps;
-  // }
 
-  for (auto c : CConsumer->toCodeCompleteStrings()) {
+  for (auto c : toCodeCompleteStrings(Results)) {
     if (c.startswith(s)) {
       Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
     }

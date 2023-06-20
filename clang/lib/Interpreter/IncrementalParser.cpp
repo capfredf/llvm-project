@@ -352,8 +352,8 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input, size_t Col
     return;
 
   auto PTU = ParseOrWrapTopLevelDecl();
-  if (!PTU) {
-    PTU.takeError();
+  if (auto Err = PTU.takeError()) {
+    consumeError(std::move(Err));
     return;
   }
 

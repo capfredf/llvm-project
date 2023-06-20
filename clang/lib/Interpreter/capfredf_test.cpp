@@ -248,63 +248,63 @@ static void LLVMErrorHandler(void *UserData, const char *Message,
 
 
 void capfredf_test(std::vector<const char *> &ArgStrs, std::string FN, size_t Line, size_t Col) {
-  auto CConsumer = std::make_unique<clang::ReplCompletionConsumer>();
-  clang::SyntaxOnlyAction Action;
-  auto* DummyFN = "<<< inputs >>>";
-  std::ifstream FInput(FN);
-  std::stringstream InputStram;
-  InputStram << FInput.rdbuf();
-  std::string Content = InputStram.str();
+  // auto CConsumer = std::make_unique<clang::ReplCompletionConsumer>();
+  // clang::SyntaxOnlyAction Action;
+  // auto* DummyFN = "<<< inputs >>>";
+  // std::ifstream FInput(FN);
+  // std::stringstream InputStram;
+  // InputStram << FInput.rdbuf();
+  // std::string Content = InputStram.str();
 
-  std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
+  // std::unique_ptr<llvm::MemoryBuffer> Buffer = llvm::MemoryBuffer::getMemBuffer(Content, FN);
 
-  ArgStrs.push_back("-xc++");
-  auto OptClang = createArgs(ArgStrs);
-  // if (ClangArgV.size() == 0)
+  // ArgStrs.push_back("-xc++");
+  // auto OptClang = createArgs(ArgStrs);
+  // // if (ClangArgV.size() == 0)
+  // //   return;
+
+  // // auto OptClang = CreateCI(ClangArgV);
+  // if (auto Err = OptClang.takeError()) {
+  //   std::cout << "failed too" << "\n";
   //   return;
+  // }
+  // auto Clang = std::move(*OptClang);
+  // // Clang->LoadRequestedPlugins();
+  // Clang->getPreprocessorOpts().addRemappedFile(DummyFN, Buffer.get());
+  // Clang->getPreprocessorOpts().SingleFileParseMode = true;
 
-  // auto OptClang = CreateCI(ClangArgV);
-  if (auto Err = OptClang.takeError()) {
-    std::cout << "failed too" << "\n";
-    return;
-  }
-  auto Clang = std::move(*OptClang);
-  // Clang->LoadRequestedPlugins();
-  Clang->getPreprocessorOpts().addRemappedFile(DummyFN, Buffer.get());
-  Clang->getPreprocessorOpts().SingleFileParseMode = true;
+  // Clang->getLangOpts().SpellChecking = false;
+  // Clang->getLangOpts().DelayedTemplateParsing = false;
 
-  Clang->getLangOpts().SpellChecking = false;
-  Clang->getLangOpts().DelayedTemplateParsing = false;
-
-  auto &FrontendOpts = Clang->getFrontendOpts();
-  FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
-  FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
-  FrontendOpts.CodeCompletionAt.Line = Line;
-  FrontendOpts.CodeCompletionAt.Column = Col;
+  // auto &FrontendOpts = Clang->getFrontendOpts();
+  // FrontendOpts.CodeCompleteOpts = clang::getClangCompleteOpts();
+  // FrontendOpts.CodeCompletionAt.FileName = std::string(DummyFN);
+  // FrontendOpts.CodeCompletionAt.Line = Line;
+  // FrontendOpts.CodeCompletionAt.Column = Col;
 
 
-  // Clang->setInvocation(std::move(CI));
-  // Clang->createDiagnostics(&D, false);
-  // Clang->getPreprocessorOpts().SingleFileParseMode = true;;
-  Clang->setCodeCompletionConsumer(CConsumer.release());
-  // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
-  //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
+  // // Clang->setInvocation(std::move(CI));
+  // // Clang->createDiagnostics(&D, false);
+  // // Clang->getPreprocessorOpts().SingleFileParseMode = true;;
+  // Clang->setCodeCompletionConsumer(CConsumer.release());
+  // // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
+  // //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
 
-  // llvm::install_fatal_error_handler(LLVMErrorHandler,
-  //                                   static_cast<void *>(&Clang->getDiagnostics()));
-  Buffer.release();
+  // // llvm::install_fatal_error_handler(LLVMErrorHandler,
+  // //                                   static_cast<void *>(&Clang->getDiagnostics()));
+  // Buffer.release();
 
-  Action.BeginSourceFile(*Clang, Clang->getFrontendOpts().Inputs[0]);
-  if (llvm::Error Err = Action.Execute()) {
-    std::cout << "failed" << "\n";
-    return;
-  }
-  Action.EndSourceFile();
+  // Action.BeginSourceFile(*Clang, Clang->getFrontendOpts().Inputs[0]);
+  // if (llvm::Error Err = Action.Execute()) {
+  //   std::cout << "failed" << "\n";
+  //   return;
+  // }
+  // Action.EndSourceFile();
 }
 
 
 void capfredf_test2(clang::Interpreter &Interp, std::string FN, size_t Line, size_t Col) {
-  auto* CConsumer = new clang::ReplCompletionConsumer();
+  auto* CConsumer = new clang::ReplCompletionConsumer(Interp.CompletionResults);
   clang::SyntaxOnlyAction Action;
   auto* DummyFN = "<<< inputs >>>";
   std::ifstream FInput(FN);

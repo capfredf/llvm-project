@@ -24,7 +24,7 @@
 #include <memory>
 namespace llvm {
 class LLVMContext;
-}
+} // namespace llvm
 
 namespace clang {
 class ASTConsumer;
@@ -60,6 +60,8 @@ protected:
   IncrementalParser();
 
 public:
+  // This is not necessarily needed.
+  // We can probably use external source to replace `AllInput`
   std::string AllInput;
 
   IncrementalParser(Interpreter &Interp,
