@@ -48,10 +48,10 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     //     true)
     //     // isInjectedClass(*Result.Declaration))
     //   continue;
+    std::ostringstream stringStream;
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       if (auto *ID = Result.Declaration->getIdentifier()) {
-        std::ostringstream stringStream;
         stringStream << "Decl ID:";
         stringStream << ID->getName().str();
         CompletionLogger.debug(stringStream.str());
@@ -64,9 +64,12 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
       break;
     default:
       break;
-    // case CodeCompletionResult::RK_Keyword:
-    //   std::cout << "[Completion] keyword " << Result.Keyword << "\n";
-    //   break;
+    case CodeCompletionResult::RK_Keyword:
+      stringStream << "Symbol/Keyword:";
+      stringStream << Result.Keyword;
+      CompletionLogger.debug(stringStream.str());
+      Results.push_back(Result);
+      break;
     // case CodeCompletionResult::RK_Macro:
     //   std::cout << "[Completion] macro " << Result.Macro->getName().str() << "\n";
     //   break;
@@ -97,6 +100,9 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(const std::vecto
       // if (auto* VD = llvm::dyn_cast<clang::VarDecl>(Result.getDeclaration())) {
       //   std::cout << "[completion] hello world " << VD->getName().str() << "\n";
       // }
+      break;
+    case CodeCompletionResult::RK_Keyword:
+      CompletionStrings.push_back(Res.Keyword);
       break;
     default:
       break;
