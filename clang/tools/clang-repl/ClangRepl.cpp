@@ -10,14 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Interpreter/Interpreter.h"
 #include "clang/Interpreter/capfredf_test.h"
-#include "clang/Interpreter/InterpreterAutoCompletion.h"
+#include "clang/Interpreter/CodeCompletion.h"
+#include "clang/Interpreter/Interpreter.h"
+#include "clang/Lex/PreprocessorOptions.h"
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/LineEditor/LineEditor.h"
@@ -27,7 +27,6 @@
 #include "llvm/Support/TargetSelect.h"
 #include <optional>
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -210,7 +209,6 @@ int main(int argc, const char **argv) {
     llvm::LineEditor LE("clang-repl");
     // FIXME: Add LE.setListCompleter
     std::string Input;
-    clang::GlobalEnv GEnv;
     LE.setListCompleter(clang::ReplListCompleter(CB, *Interp));
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
@@ -225,7 +223,8 @@ int main(int argc, const char **argv) {
       Input += L;
       if (Input == R"(%quit)") {
         break;
-      } else if (Input == R"(%undo)") {
+      }
+      if (Input == R"(%undo)") {
         if (auto Err = Interp->Undo()) {
           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
           HasError = true;
@@ -236,24 +235,9 @@ int main(int argc, const char **argv) {
           HasError = true;
         }
       } else {
-        auto PTU = Interp->Parse(Input);
-        if (!PTU) {
-          llvm::logAllUnhandledErrors(std::move(PTU.takeError()), llvm::errs(), "error: ");
+        if (auto Err = Interp->ParseAndExecute(Input)) {
+          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
           HasError = true;
-        }
-        else {
-          for (clang::Decl* D : (*PTU).TUPart->decls()) {
-            if (llvm::isa<clang::VarDecl>(D)) {
-              GEnv.extend(llvm::cast<clang::VarDecl>(D)->getName());
-            }
-            else {
-              std::cout<<D->getDeclKindName()<<"\n";
-            }
-          }
-          if (auto Err = Interp->Execute(*PTU)) {
-            llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-            HasError = true;
-          }
         }
       }
 

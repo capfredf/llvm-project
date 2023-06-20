@@ -4,18 +4,13 @@
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#ifndef LLVM_CLANG_INTERPRETER_AUTO_COMPLETION_H
-#define LLVM_CLANG_INTERPRETER_AUTO_COMPLETION_H
+#ifndef LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
+#define LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "Interpreter.h"
 #include "llvm/LineEditor/LineEditor.h"
 
 namespace clang{
-struct GlobalEnv{
-  std::vector<llvm::StringRef> names;
-
-  void extend(llvm::StringRef name);
-};
 
 clang::CodeCompleteOptions getClangCompleteOpts();
 
@@ -51,5 +46,5 @@ struct ReplListCompleter {
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer, size_t Pos) const;
 };
 
-}
+}//namespace clang
 #endif

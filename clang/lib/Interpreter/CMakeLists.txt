@@ -12,7 +12,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_clang_library(clangInterpreter
-  InterpreterAutoCompletion.cpp
+  CodeCompletion.cpp
   DeviceOffload.cpp
   IncrementalExecutor.cpp
   IncrementalParser.cpp

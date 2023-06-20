@@ -1,7 +1,7 @@
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Interpreter/InterpreterAutoCompletion.h"
-#include "clang/Sema/CodeCompleteOptions.h"
+#include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Sema/CodeCompleteOptions.h"
 #include "clang/Sema/Sema.h"
 #include <iostream>
 #include <sstream>
@@ -11,10 +11,6 @@
 
 namespace clang{
 Logger CompletionLogger{"completion.log"};
-
-void GlobalEnv::extend(llvm::StringRef name) {
-  names.push_back(name);
-}
 
 clang::CodeCompleteOptions getClangCompleteOpts() {
   clang::CodeCompleteOptions Opts;
@@ -165,7 +161,8 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
   // Clang->setTarget(clang::TargetInfo::CreateTargetInfo(
   //     Clang->getDiagnostics(), Clang->getInvocation().TargetOpts));
 
-  std::string AllCodeText = MainInterp.getAllInput() + "\n" + Buffer.str();
+  // Okay, this is just a proved idea that needs to be polished.
+  std::string AllCodeText = MainInterp.getAllInput() + "\nvoid dummy(){\n" + Buffer.str() + "}";
   auto Lines = std::count(AllCodeText.begin(), AllCodeText.end(), '\n') + 1;
 
   (*Interp)->CodeComplete(AllCodeText, Pos + 1, Lines);

@@ -311,7 +311,7 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input, size_t Col
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
 
   std::ostringstream SourceName;
-  SourceName << "input_line_" << InputCount;
+  SourceName << "input_line_[Completion]";
 
   // Create an uninitialized memory buffer, copy code in and append "\n"
   size_t InputSize = input.size(); // don't include trailing 0
@@ -418,9 +418,6 @@ IncrementalParser::Parse(llvm::StringRef input) {
     PTU->TheModule = std::move(M);
 
   if (IsRecorded) {
-    for (clang::Decl* D : (*PTU).TUPart->decls()) {
-        std::cout<<D->getDeclKindName()<<"\n";
-    }
     if (AllInput.empty()) {
       AllInput = input.str();
     } else {

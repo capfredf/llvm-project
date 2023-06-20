@@ -7,7 +7,7 @@
 #include "clang/Sema/Sema.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
-#include "clang/Interpreter/InterpreterAutoCompletion.h"
+#include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
