@@ -19,7 +19,6 @@ add_clang_library(clangInterpreter
   Interpreter.cpp
   InterpreterUtils.cpp
   Logger.cpp
-  capfredf_test.cpp
   Value.cpp
 
   DEPENDS
