@@ -313,14 +313,41 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input, size_t Col
   std::ostringstream SourceName;
   SourceName << "input_line_[Completion]";
 
+
+  auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
+  auto FE = CI->getSourceManager().getFileEntryRefForID(FID);
+  // auto Entry = PP.getFileManager().getFile(DummyFN);
+  // if (!Entry) {
+  //   std::cout << "Entry invalid \n";
+  //   return;
+  // }
+  if (FE) {
+    PP.SetCodeCompletionPoint(*FE, Line, Col);
+
+
+    // NewLoc only used for diags.
+    if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
+      return;
+
+    auto PTU = ParseOrWrapTopLevelDecl();
+    if (auto Err = PTU.takeError()) {
+      consumeError(std::move(Err));
+      return;
+    }
+
+    return;
+  }
+}
+
+std::pair<FileID, SourceLocation> IncrementalParser::createSourceFile(llvm::StringRef SourceName, llvm::StringRef Input) {
   // Create an uninitialized memory buffer, copy code in and append "\n"
-  size_t InputSize = input.size(); // don't include trailing 0
+  size_t InputSize = Input.size(); // don't include trailing 0
   // MemBuffer size should *not* include terminating zero
   std::unique_ptr<llvm::MemoryBuffer> MB(
                                          llvm::WritableMemoryBuffer::getNewUninitMemBuffer(InputSize + 1,
                                                                                            SourceName.str()));
   char *MBStart = const_cast<char *>(MB->getBufferStart());
-  memcpy(MBStart, input.data(), InputSize);
+  memcpy(MBStart, Input.data(), InputSize);
   MBStart[InputSize] = '\n';
 
   SourceManager &SM = CI->getSourceManager();
@@ -338,65 +365,40 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input, size_t Col
                                          0 /* mod time*/);
   SM.overrideFileContents(FE, std::move(MB));
   FileID FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
-
-  // auto Entry = PP.getFileManager().getFile(DummyFN);
-  // if (!Entry) {
-  //   std::cout << "Entry invalid \n";
-  //   return;
-  // }
-  PP.SetCodeCompletionPoint(FE, Line, Col);
-
-
-  // NewLoc only used for diags.
-  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, NewLoc))
-    return;
-
-  auto PTU = ParseOrWrapTopLevelDecl();
-  if (auto Err = PTU.takeError()) {
-    consumeError(std::move(Err));
-    return;
-  }
-
-  return;
+  return {FID, NewLoc};
 }
 
 llvm::Expected<PartialTranslationUnit &>
-IncrementalParser::Parse(llvm::StringRef input) {
+IncrementalParser::ParseForPTU(FileID FID, SourceLocation SrcLoc) {
+  // Create an uninitialized memory buffer, copy code in and append "\n"
   Preprocessor &PP = CI->getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
 
-  std::ostringstream SourceName;
-  SourceName << "input_line_" << InputCount++;
-
-  // Create an uninitialized memory buffer, copy code in and append "\n"
-  size_t InputSize = input.size(); // don't include trailing 0
-  // MemBuffer size should *not* include terminating zero
-  std::unique_ptr<llvm::MemoryBuffer> MB(
-      llvm::WritableMemoryBuffer::getNewUninitMemBuffer(InputSize + 1,
-                                                        SourceName.str()));
-  char *MBStart = const_cast<char *>(MB->getBufferStart());
-  memcpy(MBStart, input.data(), InputSize);
-  MBStart[InputSize] = '\n';
-
-  SourceManager &SM = CI->getSourceManager();
-
-  // FIXME: Create SourceLocation, which will allow clang to order the overload
-  // candidates for example
-  SourceLocation NewLoc = SM.getLocForStartOfFile(SM.getMainFileID());
-
-  // Create FileID for the current buffer.
-  FileID FID = SM.createFileID(std::move(MB), SrcMgr::C_User, /*LoadedID=*/0,
-                               /*LoadedOffset=*/0, NewLoc);
-
   // NewLoc only used for diags.
-  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, NewLoc))
+  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
     return llvm::make_error<llvm::StringError>("Parsing failed. "
                                                "Cannot enter source file.",
                                                std::error_code());
 
   auto PTU = ParseOrWrapTopLevelDecl();
   if (!PTU)
-    return PTU.takeError();
+    return std::move(PTU.takeError());
+  return *PTU;
+}
+
+llvm::Expected<PartialTranslationUnit &>
+IncrementalParser::Parse(llvm::StringRef input) {
+  Preprocessor &PP = CI->getPreprocessor();
+  std::ostringstream SourceName;
+  SourceName << "input_line_" << InputCount++;
+
+  auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
+  auto PTU = ParseForPTU(FID, SrcLoc);
+
+  if (!PTU) {
+    return std::move(PTU.takeError());
+  }
+
 
   if (PP.getLangOpts().DelayedTemplateParsing) {
     // Microsoft-specific:

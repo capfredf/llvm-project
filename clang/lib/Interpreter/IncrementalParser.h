@@ -91,6 +91,11 @@ public:
 
 private:
   llvm::Expected<PartialTranslationUnit &> ParseOrWrapTopLevelDecl();
+
+  llvm::Expected<PartialTranslationUnit &> ParseForPTU(FileID FID, SourceLocation SrcLoc);
+
+  std::pair<FileID, SourceLocation> createSourceFile(llvm::StringRef SourceName, llvm::StringRef Input);
+
 };
 } // end namespace clang
 
