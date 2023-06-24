@@ -12,11 +12,9 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Interpreter.h"
-#include "clang/Lex/PreprocessorOptions.h"
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/LineEditor/LineEditor.h"
@@ -38,9 +36,6 @@ static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
                                               llvm::cl::Hidden);
 static llvm::cl::list<std::string> OptInputs(llvm::cl::Positional,
                                              llvm::cl::desc("[code to run]"));
-static llvm::cl::opt<std::string> OptTestCodeCompletion("code-completion-at", llvm::cl::Hidden);
-static llvm::cl::opt<unsigned> OptTestCodeCompletionFun("code-completion-at-fun", llvm::cl::Hidden);
-
 
 static void LLVMErrorHandler(void *UserData, const char *Message,
                              bool GenCrashDiag) {
@@ -76,7 +71,6 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
   return (Errs || HasError) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-
 llvm::ExitOnError ExitOnErr;
 int main(int argc, const char **argv) {
   ExitOnErr.setBanner("clang-repl: ");
@@ -87,7 +81,6 @@ int main(int argc, const char **argv) {
   std::vector<const char *> ClangArgv(ClangArgs.size());
   std::transform(ClangArgs.begin(), ClangArgs.end(), ClangArgv.begin(),
                  [](const std::string &s) -> const char * { return s.data(); });
-
   // Initialize all targets (required for device offloading)
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
@@ -140,7 +133,6 @@ int main(int argc, const char **argv) {
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-
   std::unique_ptr<clang::Interpreter> Interp;
   if (CudaEnabled) {
     Interp = ExitOnErr(
@@ -191,11 +183,9 @@ int main(int argc, const char **argv) {
           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
           HasError = true;
         }
-      } else {
-        if (auto Err = Interp->ParseAndExecute(Input)) {
-          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-          HasError = true;
-        }
+      } else if (auto Err = Interp->ParseAndExecute(Input)) {
+        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+        HasError = true;
       }
 
       Input = "";
