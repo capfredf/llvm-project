@@ -31,4 +31,33 @@ TEST(CodeCompletionTest, Sanity) {
   EXPECT_EQ((size_t)2, comps.size()); // foo and float
   EXPECT_EQ(comps[0].TypedText, std::string("oo"));
 }
+
+TEST(CodeCompletionTest, SanityNoneValid) {
+  auto Interp = createInterpreter();
+  Interp->startRecordingInput();
+  if (auto R = Interp->ParseAndExecute("int foo = 12;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  auto Completer = ReplListCompleter(CB, *Interp);
+  std::vector<llvm::LineEditor::Completion> comps = Completer(std::string("babanana"), 8);
+  EXPECT_EQ((size_t)0, comps.size()); // foo and float
+}
+
+
+TEST(CodeCompletionTest, TwoDecls) {
+  auto Interp = createInterpreter();
+  Interp->startRecordingInput();
+  if (auto R = Interp->ParseAndExecute("int application = 12;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("int apple = 12;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  auto Completer = ReplListCompleter(CB, *Interp);
+  std::vector<llvm::LineEditor::Completion> comps = Completer(std::string("app"), 3);
+  EXPECT_EQ((size_t)2, comps.size());
+}
 } // anonymous namespace
