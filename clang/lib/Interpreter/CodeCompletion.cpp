@@ -5,12 +5,10 @@
 #include "clang/Sema/Sema.h"
 #include <iostream>
 #include <sstream>
-#include "Logger.h"
 #include <format>
 
 
 namespace clang{
-Logger CompletionLogger{"completion.log"};
 
 clang::CodeCompleteOptions getClangCompleteOpts() {
   clang::CodeCompleteOptions Opts;
@@ -24,7 +22,6 @@ clang::CodeCompleteOptions getClangCompleteOpts() {
 void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                                         CodeCompletionResult *InResults,
                                                         unsigned NumResults) {
-  CompletionLogger.debug("Start ProcessCodeComplete");
   for (unsigned I = 0; I < NumResults; ++I) {
     auto &Result = InResults[I];
     std::ostringstream stringStream;
@@ -33,7 +30,6 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
       if (auto *ID = Result.Declaration->getIdentifier()) {
         stringStream << "Decl ID:";
         stringStream << ID->getName().str();
-        CompletionLogger.debug(stringStream.str());
         Results.push_back(Result);
       }
       break;
@@ -42,7 +38,6 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(class Sema &S, CodeCompl
     case CodeCompletionResult::RK_Keyword:
       stringStream << "Symbol/Keyword:";
       stringStream << Result.Keyword;
-      CompletionLogger.debug(stringStream.str());
       Results.push_back(Result);
       break;
     }

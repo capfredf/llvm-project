@@ -18,7 +18,6 @@ add_clang_library(clangInterpreter
   IncrementalParser.cpp
   Interpreter.cpp
   InterpreterUtils.cpp
-  Logger.cpp
   Value.cpp
 
   DEPENDS
