@@ -14,7 +14,6 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Interpreter/capfredf_test.h"
 #include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Lex/PreprocessorOptions.h"
@@ -26,9 +25,6 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include <optional>
-
-#include <fstream>
-#include <sstream>
 
 static llvm::cl::opt<bool> CudaEnabled("cuda", llvm::cl::Hidden);
 static llvm::cl::opt<std::string> CudaPath("cuda-path", llvm::cl::Hidden);
@@ -98,38 +94,6 @@ int main(int argc, const char **argv) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
 
-  if (!OptTestCodeCompletion.empty()) {
-    llvm::StringRef CodeCompletionArgs(OptTestCodeCompletion);
-    llvm::StringRef FN, RawCol, RawLine;
-    auto P = CodeCompletionArgs.split(":");
-    FN = P.first;
-    std::tie(RawLine, RawCol) = P.second.split(":");
-    size_t Line = std::stoi(RawLine.str());
-    size_t Col = std::stoi(RawCol.str());
-    int idx = OptTestCodeCompletionFun;
-    switch (idx) {
-    case 3: {
-      clang::IncrementalCompilerBuilder CB1;
-      CB1.SetCompilerArgs(ClangArgv);
-      ExitOnErr(capfredf_test3(CB1, FN.str(), Line, Col));
-      break;
-    }
-    case 2: {
-      clang::IncrementalCompilerBuilder CB1;
-      CB1.SetCompilerArgs(ClangArgv);
-      std::unique_ptr<clang::CompilerInstance> CI = ExitOnErr(CB1.CreateCpp());
-      auto Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
-      capfredf_test2(*Interp, FN.str(), Line, Col);
-      break;
-    }
-    default:
-      capfredf_test(ClangArgv, FN.str(), Line, Col);
-      break;
-    }
-    return EXIT_SUCCESS;
-  }
-
-
   if (OptHostSupportsJit) {
     auto J = llvm::orc::LLJITBuilder().create();
     if (J)
@@ -198,16 +162,9 @@ int main(int argc, const char **argv) {
 
   bool HasError = false;
 
-  // if (auto Err = capfredf_test3(CB)) {
-  //   llvm::logAllUnhandledErrors(std::move(Err.takeError()), llvm::errs(), "error: ");
-  //   return EXIT_FAILURE;
-  // };
-  // return EXIT_SUCCESS;
-
   if (OptInputs.empty()) {
     Interp->startRecordingInput();
     llvm::LineEditor LE("clang-repl");
-    // FIXME: Add LE.setListCompleter
     std::string Input;
     LE.setListCompleter(clang::ReplListCompleter(CB, *Interp));
     while (std::optional<std::string> Line = LE.readLine()) {

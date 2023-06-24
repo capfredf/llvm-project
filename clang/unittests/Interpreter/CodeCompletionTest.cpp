@@ -28,7 +28,7 @@ TEST(CodeCompletionTest, Sanity) {
   }
   auto Completer = ReplListCompleter(CB, *Interp);
   std::vector<llvm::LineEditor::Completion> comps = Completer(std::string("f"), 1);
-  EXPECT_EQ((size_t)1, comps.size());
+  EXPECT_EQ((size_t)2, comps.size()); // foo and float
   EXPECT_EQ(comps[0].TypedText, std::string("oo"));
 }
 } // anonymous namespace
