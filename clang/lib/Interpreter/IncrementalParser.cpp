@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "IncrementalParser.h"
+#include "ExternalSource.h"
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/CodeGen/BackendUtil.h"
 #include "clang/CodeGen/CodeGenAction.h"
@@ -116,10 +117,11 @@ public:
 class IncrementalAction : public WrapperFrontendAction {
 private:
   bool IsTerminating = false;
+  const CompilerInstance* ParentCI;
 
 public:
   IncrementalAction(CompilerInstance &CI, llvm::LLVMContext &LLVMCtx,
-                    llvm::Error &Err)
+                    llvm::Error &Err, const CompilerInstance* ParentCI = nullptr)
       : WrapperFrontendAction([&]() {
           llvm::ErrorAsOutParameter EAO(&Err);
           std::unique_ptr<FrontendAction> Act;
@@ -153,7 +155,7 @@ public:
             break;
           }
           return Act;
-        }()) {}
+      }()), ParentCI(ParentCI) {}
   FrontendAction *getWrapped() const { return WrappedAction.get(); }
   TranslationUnitKind getTranslationUnitKind() override {
     return TU_Incremental;
@@ -175,6 +177,15 @@ public:
 
     Preprocessor &PP = CI.getPreprocessor();
     PP.EnterMainSourceFile();
+
+    if (ParentCI) {
+      ExternalSource *myExternalSource = new ExternalSource(CI.getASTContext(), ParentCI->getASTContext());
+      llvm::IntrusiveRefCntPtr <ExternalASTSource>
+        astContextExternalSource(myExternalSource);
+      CI.getASTContext().setExternalSource(astContextExternalSource);
+      CI.getASTContext().getTranslationUnitDecl()->setHasExternalVisibleStorage(true);
+      // Clang->
+    }
 
     if (!CI.hasSema())
       CI.createSema(getTranslationUnitKind(), CompletionConsumer);
@@ -207,10 +218,11 @@ IncrementalParser::IncrementalParser() {}
 IncrementalParser::IncrementalParser(Interpreter &Interp,
                                      std::unique_ptr<CompilerInstance> Instance,
                                      llvm::LLVMContext &LLVMCtx,
-                                     llvm::Error &Err)
+                                     llvm::Error &Err,
+                                     const CompilerInstance* ParentCI)
     : CI(std::move(Instance)) {
   llvm::ErrorAsOutParameter EAO(&Err);
-  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err);
+  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err, ParentCI);
   if (Err)
     return;
   CI->ExecuteAction(*Act);
@@ -420,11 +432,11 @@ IncrementalParser::Parse(llvm::StringRef input) {
     PTU->TheModule = std::move(M);
 
   if (IsRecorded) {
-    if (AllInput.empty()) {
-      AllInput = input.str();
-    } else {
-      AllInput = AllInput + "\n" + input.str();
-    }
+    // if (AllInput.empty()) {
+    //   AllInput = input.str();
+    // } else {
+    //   AllInput = AllInput + "\n" + input.str();
+    // }
   }
   return PTU;
 }

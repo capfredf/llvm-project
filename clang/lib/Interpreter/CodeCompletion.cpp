@@ -69,10 +69,10 @@ std::vector<llvm::LineEditor::Completion> ReplListCompleter::operator()(llvm::St
                                                                         size_t Pos) const{
   std::vector<llvm::LineEditor::Completion> Comps;
 
-  auto Interp = Interpreter::createForCodeCompletion(CB);
+  auto Interp = Interpreter::createForCodeCompletion(CB, MainInterp.getCompilerInstance());
 
   if (auto Err = Interp.takeError()) {
-    consumeError(std::move(Err));
+    llvm::consumeError(std::move(Err));
     return Comps;
   }
 

@@ -14,6 +14,7 @@
 #include "clang/Interpreter/Interpreter.h"
 
 #include "DeviceOffload.h"
+#include "ExternalSource.h"
 #include "IncrementalExecutor.h"
 #include "IncrementalParser.h"
 
@@ -128,7 +129,6 @@ CreateCI(const llvm::opt::ArgStringList &Argv) {
 
   Clang->getFrontendOpts().DisableFree = false;
   Clang->getCodeGenOpts().DisableFree = false;
-
   return std::move(Clang);
 }
 
@@ -231,14 +231,15 @@ IncrementalCompilerBuilder::CreateCudaHost() {
 }
 
 Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
-                         llvm::Error &Err) {
+                         llvm::Error &Err,
+                         const CompilerInstance* ParentCI) {
   llvm::ErrorAsOutParameter EAO(&Err);
   auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
   TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
   auto* CConsumer = new ReplCompletionConsumer(CompletionResults);
   CI->setCodeCompletionConsumer(CConsumer);
   IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
-                                                   *TSCtx->getContext(), Err);
+                                                   *TSCtx->getContext(), Err, ParentCI);
 }
 
 
@@ -275,10 +276,10 @@ const char *const Runtimes = R"(
 )";
 
 llvm::Expected<std::unique_ptr<Interpreter>>
-Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
+Interpreter::create(std::unique_ptr<CompilerInstance> CI, const CompilerInstance* ParentCI) {
   llvm::Error Err = llvm::Error::success();
   auto Interp =
-      std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err));
+    std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err, ParentCI));
   if (Err)
     return std::move(Err);
   auto PTU = Interp->Parse(Runtimes);
@@ -294,7 +295,7 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
 }
 
 llvm::Expected<std::unique_ptr<Interpreter>>
-Interpreter::createForCodeCompletion(IncrementalCompilerBuilder &CB) {
+Interpreter::createForCodeCompletion(IncrementalCompilerBuilder &CB, const CompilerInstance* ParentCI) {
   auto CI = CB.CreateCpp();
   if (auto Err = CI.takeError()) {
     return std::move(Err);
@@ -305,16 +306,14 @@ Interpreter::createForCodeCompletion(IncrementalCompilerBuilder &CB) {
   (*CI)->getLangOpts().SpellChecking = false;
   (*CI)->getLangOpts().DelayedTemplateParsing = false;
 
-  // FIXME: The lines below don't seem to be needed.
   auto &FrontendOpts = (*CI)->getFrontendOpts();
   FrontendOpts.CodeCompleteOpts = getClangCompleteOpts();
 
-  auto InterpOrErr = clang::Interpreter::create(std::move(*CI));
+  auto InterpOrErr = clang::Interpreter::create(std::move(*CI), ParentCI);
   if (auto Err = InterpOrErr.takeError()) {
     return std::move(Err);
   }
   return std::move(*InterpOrErr);
-
 }
 
 llvm::Expected<std::unique_ptr<Interpreter>>

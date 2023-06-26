@@ -84,7 +84,7 @@ class Interpreter {
   std::unique_ptr<IncrementalParser> DeviceParser;
   std::unique_ptr<ReplCompletionConsumer> CConsumer;
 
-  Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
+  Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err, const CompilerInstance* ParentCI = nullptr);
 
   llvm::Error CreateExecutor();
   unsigned InitPTUSize = 0;
@@ -100,14 +100,14 @@ public:
   void startRecordingInput();
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
-  create(std::unique_ptr<CompilerInstance> CI);
+  create(std::unique_ptr<CompilerInstance> CI, const CompilerInstance* ParentCI = nullptr);
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                  std::unique_ptr<CompilerInstance> DCI);
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
-  createForCodeCompletion(IncrementalCompilerBuilder& CB);
+  createForCodeCompletion(IncrementalCompilerBuilder& CB, const CompilerInstance* ParentCI);
 
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();

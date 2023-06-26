@@ -66,7 +66,8 @@ public:
 
   IncrementalParser(Interpreter &Interp,
                     std::unique_ptr<CompilerInstance> Instance,
-                    llvm::LLVMContext &LLVMCtx, llvm::Error &Err);
+                    llvm::LLVMContext &LLVMCtx, llvm::Error &Err,
+                    const CompilerInstance* ParentCI = nullptr);
   virtual ~IncrementalParser();
 
   CompilerInstance *getCI() { return CI.get(); }
