@@ -179,7 +179,7 @@ public:
     PP.EnterMainSourceFile();
 
     if (ParentCI) {
-      ExternalSource *myExternalSource = new ExternalSource(CI.getASTContext(), ParentCI->getASTContext());
+      ExternalSource *myExternalSource = new ExternalSource(CI.getASTContext(), CI.getFileManager(), ParentCI->getASTContext(), ParentCI->getFileManager());
       llvm::IntrusiveRefCntPtr <ExternalASTSource>
         astContextExternalSource(myExternalSource);
       CI.getASTContext().setExternalSource(astContextExternalSource);
