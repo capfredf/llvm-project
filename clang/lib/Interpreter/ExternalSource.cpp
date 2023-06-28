@@ -69,28 +69,33 @@ bool ExternalSource::FindExternalVisibleDeclsByName(const DeclContext *DC, Decla
 
   if (!lookup_result.empty()) {
     std::cout << "\nFindExternalVisibleDeclsByName:\t" << Name.getAsString() <<"\n";
+    return true;
   }
   return false;
 }
 
-void ExternalSource::completeVisibleDeclsMap(const clang::DeclContext *ChildDeclContext) {
+void ExternalSource::completeVisibleDeclsMap(const DeclContext *ChildDeclContext) {
   assert (ChildDeclContext && ChildDeclContext == ChildTUDeclCtxt && "No child decl context!");
 
   if (!ChildDeclContext->hasExternalVisibleStorage())
     return;
 
-  for (DeclContext::decl_iterator IDeclContext =
-         ParentTUDeclCtxt->decls_begin(),
-         EDeclContext =
-         ParentTUDeclCtxt->decls_end();
-       IDeclContext != EDeclContext; ++IDeclContext) {
-    if (NamedDecl* ParentDecl = llvm::dyn_cast<NamedDecl>(*IDeclContext)) {
+  // for (auto IDeclContext =
+  //        ParentTUDeclCtxt->decls_begin(),
+  //        EDeclContext =
+  //        ParentTUDeclCtxt->decls_end();
+  //      IDeclContext != EDeclContext; ++IDeclContext)
+  for (auto& IDeclContext : ParentTUDeclCtxt->decls()){
+    if (NamedDecl* ParentDecl = llvm::dyn_cast<NamedDecl>(IDeclContext)) {
       DeclarationName ChildDeclName = ParentDecl->getDeclName();
-      if (auto II = ChildDeclName.getAsIdentifierInfo()) {
-        StringRef name = II->getName();
+      if (auto *II = ChildDeclName.getAsIdentifierInfo()) {
+        // StringRef name = II->getName();
         if (auto DeclOrErr = Importer->Import(ParentDecl)) {
-        // ImportDecl(ParentDecl, ChildDeclName, ChildDeclName,
-        //            ChildDeclContext);
+          if (NamedDecl *importedNamedDecl = llvm::dyn_cast<NamedDecl>(*DeclOrErr)) {
+            SetExternalVisibleDeclsForName(ChildDeclContext,
+                                           importedNamedDecl->getDeclName(),
+                                           importedNamedDecl);
+          }
 
         } else {
           llvm::consumeError(DeclOrErr.takeError());
@@ -98,6 +103,7 @@ void ExternalSource::completeVisibleDeclsMap(const clang::DeclContext *ChildDecl
       }
     }
   }
+  ChildDeclContext->setHasExternalLexicalStorage(false);
 }
 
 } //namespace clang
