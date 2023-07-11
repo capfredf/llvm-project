@@ -19,31 +19,6 @@ namespace clang {
 class Interpreter;
 class IncrementalCompilerBuilder;
 
-clang::CodeCompleteOptions getClangCompleteOpts();
-
-class ReplCompletionConsumer : public CodeCompleteConsumer {
-public:
-  ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results)
-      : CodeCompleteConsumer(getClangCompleteOpts()),
-        CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
-        CCTUInfo(CCAllocator), Results(Results){};
-  void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
-                                  CodeCompletionResult *InResults,
-                                  unsigned NumResults) final;
-
-  clang::CodeCompletionAllocator &getAllocator() override {
-    return *CCAllocator;
-  }
-
-  clang::CodeCompletionTUInfo &getCodeCompletionTUInfo() override {
-    return CCTUInfo;
-  }
-
-private:
-  std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
-  CodeCompletionTUInfo CCTUInfo;
-  std::vector<CodeCompletionResult> &Results;
-};
 
 struct ReplListCompleter {
   IncrementalCompilerBuilder &CB;
