@@ -331,11 +331,7 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
 
   auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
   auto FE = CI->getSourceManager().getFileEntryRefForID(FID);
-  // auto Entry = PP.getFileManager().getFile(DummyFN);
-  // if (!Entry) {
-  //   std::cout << "Entry invalid \n";
-  //   return;
-  // }
+
   if (FE) {
     PP.SetCodeCompletionPoint(*FE, Line, Col);
 
@@ -372,13 +368,12 @@ IncrementalParser::createSourceFile(llvm::StringRef SourceName,
   // candidates for example
   SourceLocation NewLoc = SM.getLocForStartOfFile(SM.getMainFileID());
 
-  // Create FileID for the current buffer.
-  // FileID FID = SM.createFileID(std::move(MB), SrcMgr::C_User, /*LoadedID=*/0,
-  //                              /*LoadedOffset=*/0, NewLoc);
 
   const clang::FileEntry *FE = SM.getFileManager().getVirtualFile(
       SourceName.str(), InputSize, 0 /* mod time*/);
   SM.overrideFileContents(FE, std::move(MB));
+
+  // Create FileID for the current buffer.
   FileID FID = SM.createFileID(FE, NewLoc, SrcMgr::C_User);
   return {FID, NewLoc};
 }
