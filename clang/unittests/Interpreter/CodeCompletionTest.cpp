@@ -68,4 +68,23 @@ TEST(CodeCompletionTest, CompFunDeclsNoError) {
   EXPECT_EQ((bool)Err, false);
 }
 
+TEST(CodeCompletionTest, TempTypedDirected) {
+  auto Interp = createInterpreter();
+  if (auto R = Interp->ParseAndExecute("int application = 12;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("char apple = '2';")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("void add(int &SomeInt){}")) {
+    consumeError(std::move(R));
+    return;
+  }
+  auto Completer = ReplListCompleter(CB, *Interp);
+  std::vector<llvm::LineEditor::Completion> comps =
+      Completer(std::string("add("), 3);
+  EXPECT_EQ((size_t)1, comps.size());
+}
 } // anonymous namespace
