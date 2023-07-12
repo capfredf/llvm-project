@@ -1851,7 +1851,7 @@ static void AddFunctionSpecifiers(Sema::ParserCompletionContext CCC,
   case Sema::PCC_ObjCInstanceVariableList:
   case Sema::PCC_Expression:
   case Sema::PCC_Statement:
-  case Sema::PCC_ReplTopLevel:
+  case Sema::PCC_TopLevelStmtDecl:
   case Sema::PCC_ForInit:
   case Sema::PCC_Condition:
   case Sema::PCC_RecoveryInFunction:
@@ -1909,7 +1909,7 @@ static bool WantTypesInContext(Sema::ParserCompletionContext CCC,
   case Sema::PCC_Type:
   case Sema::PCC_ParenthesizedExpression:
   case Sema::PCC_LocalDeclarationSpecifiers:
-  case Sema::PCC_ReplTopLevel:
+  case Sema::PCC_TopLevelStmtDecl:
     return true;
 
   case Sema::PCC_Expression:
@@ -2222,7 +2222,7 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC, Scope *S,
     break;
 
   case Sema::PCC_RecoveryInFunction:
-  case Sema::PCC_ReplTopLevel:
+  case Sema::PCC_TopLevelStmtDecl:
   case Sema::PCC_Statement: {
     if (SemaRef.getLangOpts().CPlusPlus11)
       AddUsingAliasResult(Builder, Results);
@@ -4212,7 +4212,7 @@ mapCodeCompletionContext(Sema &S, Sema::ParserCompletionContext PCC) {
 
   case Sema::PCC_LocalDeclarationSpecifiers:
     return CodeCompletionContext::CCC_Type;
-  case Sema::PCC_ReplTopLevel:
+  case Sema::PCC_TopLevelStmtDecl:
     return CodeCompletionContext::CCC_ReplTopLevel;
   }
 
@@ -4354,7 +4354,7 @@ void Sema::CodeCompleteOrdinaryName(Scope *S,
     break;
 
   case PCC_Statement:
-  case PCC_ReplTopLevel:
+  case PCC_TopLevelStmtDecl:
   case PCC_ParenthesizedExpression:
   case PCC_Expression:
   case PCC_ForInit:
@@ -4392,7 +4392,7 @@ void Sema::CodeCompleteOrdinaryName(Scope *S,
   case PCC_ParenthesizedExpression:
   case PCC_Expression:
   case PCC_Statement:
-  case PCC_ReplTopLevel:
+  case PCC_TopLevelStmtDecl:
   case PCC_RecoveryInFunction:
     if (S->getFnParent())
       AddPrettyFunctionResults(getLangOpts(), Results);

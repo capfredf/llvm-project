@@ -928,7 +928,7 @@ Parser::ParseExternalDeclaration(ParsedAttributes &Attrs,
     if (CurParsedObjCImpl) {
       PCC = Sema::PCC_ObjCImplementation;
     } else if (PP.isIncrementalProcessingEnabled()) {
-      PCC = Sema::PCC_ReplTopLevel;
+      PCC = Sema::PCC_TopLevelStmtDecl;
     } else {
       PCC = Sema::PCC_Namespace;
     };

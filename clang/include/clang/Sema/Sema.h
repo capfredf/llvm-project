@@ -13321,7 +13321,7 @@ public:
     /// specifiers within a function, method, or block.
     PCC_LocalDeclarationSpecifiers,
     /// Code completion occurs at top-level in a REPL session
-    PCC_ReplTopLevel,
+    PCC_TopLevelStmtDecl,
   };
 
   void CodeCompleteModuleImport(SourceLocation ImportLoc, ModuleIdPath Path);
