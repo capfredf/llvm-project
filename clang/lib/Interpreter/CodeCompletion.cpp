@@ -122,10 +122,9 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
   }
 
   for (auto c : toCodeCompleteStrings(Results)) {
-    if (c.startswith(s)) {
+    if (c.startswith(s))
       Comps.push_back(
           llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
-    }
   }
   return Comps;
 }
