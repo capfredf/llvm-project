@@ -95,9 +95,7 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
 
 ReplListCompleter::ReplListCompleter(IncrementalCompilerBuilder &CB,
                                      Interpreter &Interp)
-    : CB(CB), MainInterp(Interp), ErrStream(llvm::errs()){
-
-                                  };
+  : CB(CB), MainInterp(Interp), ErrStream(llvm::errs()){};
 
 std::vector<llvm::LineEditor::Completion>
 ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
