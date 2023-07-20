@@ -2,9 +2,10 @@
 #include "clang/Interpreter/Interpreter.h"
 
 #include "llvm/LineEditor/LineEditor.h"
-
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
+
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -58,4 +59,16 @@ TEST(CodeCompletionTest, TwoDecls) {
       Completer(std::string("app"), 3);
   EXPECT_EQ((size_t)2, comps.size());
 }
+
+
+TEST(CodeCompletionTest, CompFunDeclsNoError) {
+  auto Interp = createInterpreter();
+  std::string out;
+  auto rs = llvm::raw_string_ostream(out);
+  auto Completer = ReplListCompleter(CB, *Interp, rs);
+  std::vector<llvm::LineEditor::Completion> comps =
+    Completer(std::string("void app("), 9);
+  EXPECT_EQ((size_t)0, out.length());
+}
+
 } // anonymous namespace

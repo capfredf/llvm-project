@@ -775,8 +775,8 @@ Expr *Interpreter::SynthesizeExpr(Expr *E) {
   return Result.get();
 }
 
-void Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line) {
-  IncrParser->ParseForCodeCompletion(Input, Col, Line);
+llvm::Error Interpreter::CodeComplete(llvm::StringRef Input, size_t Col, size_t Line) {
+  return IncrParser->ParseForCodeCompletion(Input, Col, Line);
 }
 
 // Temporary rvalue struct that need special care.

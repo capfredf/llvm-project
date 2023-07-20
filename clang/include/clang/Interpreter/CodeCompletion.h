@@ -12,25 +12,31 @@
 
 #ifndef LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
 #define LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
-#include "clang/Sema/CodeCompleteConsumer.h"
 #include "llvm/LineEditor/LineEditor.h"
+
+namespace llvm {
+  class raw_ostream;
+  class StringRef;
+} // namespace llvm
 
 namespace clang {
 class Interpreter;
+class CodeCompletionResult;
 class IncrementalCompilerBuilder;
-
 
 struct ReplListCompleter {
   IncrementalCompilerBuilder &CB;
   Interpreter &MainInterp;
-  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp)
-      : CB(CB), MainInterp(Interp){};
+  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp);
+  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp, llvm::raw_ostream& ErrStream) :
+    CB(CB), MainInterp(Interp), ErrStream(ErrStream) {};
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
                                                        size_t Pos) const;
-
 private:
-  std::vector<StringRef>
+  llvm::raw_ostream& ErrStream;
+  std::vector<llvm::StringRef>
   toCodeCompleteStrings(const std::vector<CodeCompletionResult> &Results) const;
+
 };
 
 } // namespace clang

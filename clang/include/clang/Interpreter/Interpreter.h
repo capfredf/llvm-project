@@ -113,7 +113,7 @@ public:
 
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
-  void CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
+  llvm::Error CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 

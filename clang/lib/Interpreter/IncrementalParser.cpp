@@ -321,7 +321,7 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   return LastPTU;
 }
 
-void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
+llvm::Error IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
                                                size_t Col, size_t Line) {
   Preprocessor &PP = CI->getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
@@ -332,21 +332,18 @@ void IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
   auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
   auto FE = CI->getSourceManager().getFileEntryRefForID(FID);
 
-  if (FE) {
-    PP.SetCodeCompletionPoint(*FE, Line, Col);
+  PP.SetCodeCompletionPoint(*FE, Line, Col);
 
-    // NewLoc only used for diags.
-    if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
-      return;
+  // NewLoc only used for diags.
+  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
+    return llvm::Error::success();;
 
-    auto PTU = ParseOrWrapTopLevelDecl();
-    if (auto Err = PTU.takeError()) {
-      consumeError(std::move(Err));
-      return;
-    }
-
-    return;
+  auto PTU = ParseOrWrapTopLevelDecl();
+  if (auto Err = PTU.takeError()) {
+    return std::move(Err);
   }
+
+  return llvm::Error::success();;
 }
 
 std::pair<FileID, SourceLocation>

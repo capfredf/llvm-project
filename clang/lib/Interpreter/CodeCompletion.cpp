@@ -14,6 +14,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Sema/CodeCompleteOptions.h"
 #include "clang/Sema/Sema.h"
 
@@ -28,13 +29,12 @@ clang::CodeCompleteOptions getClangCompleteOpts() {
   return Opts;
 }
 
-
 class ReplCompletionConsumer : public CodeCompleteConsumer {
 public:
   ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results)
-    : CodeCompleteConsumer(getClangCompleteOpts()),
-      CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
-      CCTUInfo(CCAllocator), Results(Results){};
+      : CodeCompleteConsumer(getClangCompleteOpts()),
+        CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
+        CCTUInfo(CCAllocator), Results(Results){};
   void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                   CodeCompletionResult *InResults,
                                   unsigned NumResults) final;
@@ -52,7 +52,6 @@ private:
   CodeCompletionTUInfo CCTUInfo;
   std::vector<CodeCompletionResult> &Results;
 };
-
 
 void ReplCompletionConsumer::ProcessCodeCompleteResults(
     class Sema &S, CodeCompletionContext Context,
@@ -94,6 +93,11 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
   return CompletionStrings;
 }
 
+ReplListCompleter::ReplListCompleter(IncrementalCompilerBuilder &CB,
+                                     Interpreter &Interp)
+    : CB(CB), MainInterp(Interp), ErrStream(llvm::errs()){
+
+                                  };
 
 std::vector<llvm::LineEditor::Completion>
 ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
@@ -103,15 +107,20 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
   auto Interp = Interpreter::createForCodeCompletion(
       CB, MainInterp.getCompilerInstance(), CConsumer);
 
+  ErrStream << "1234567";
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
-    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-    return Comps;
+
+    llvm::logAllUnhandledErrors(std::move(Err), ErrStream, "error: ");
+    return {};
   }
 
   auto Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
 
-  (*Interp)->CodeComplete(Buffer, Pos + 1, Lines);
+  if (auto Err = (*Interp)->CodeComplete(Buffer, Pos + 1, Lines)) {
+    llvm::logAllUnhandledErrors(std::move(Err), ErrStream, "error: ");
+    return {};
+  }
 
   size_t space_pos = Buffer.rfind(" ");
   llvm::StringRef s;
