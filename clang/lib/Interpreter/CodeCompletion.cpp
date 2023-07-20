@@ -107,7 +107,6 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
   auto Interp = Interpreter::createForCodeCompletion(
       CB, MainInterp.getCompilerInstance(), CConsumer);
 
-  ErrStream << "1234567";
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
 

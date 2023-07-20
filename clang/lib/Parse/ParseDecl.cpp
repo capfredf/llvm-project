@@ -6642,11 +6642,13 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
   while (true) {
     if (Tok.is(tok::l_paren)) {
       if (PP.isIncrementalProcessingEnabled() && NextToken().is(tok::code_completion)) {
-          // ConsumeParen();
-          // cutOffParsing();
-          // D.SetIdentifier(nullptr, Tok.getLocation());
-          // D.setInvalidType(true);
-          // break;
+        // In clang-repl, code completion for input like `void foo(<tab>` should not trigger a parsing error.
+        // So we make the declarator malformed and exits the loop.
+        ConsumeParen();
+        cutOffParsing();
+        D.SetIdentifier(nullptr, Tok.getLocation());
+        D.setInvalidType(true);
+        break;
       }
 
       bool IsFunctionDeclaration = D.isFunctionDeclaratorAFunctionDeclaration();
