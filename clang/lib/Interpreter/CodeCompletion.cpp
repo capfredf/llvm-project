@@ -93,12 +93,18 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
   return CompletionStrings;
 }
 
-ReplListCompleter::ReplListCompleter(IncrementalCompilerBuilder &CB,
-                                     Interpreter &Interp)
-  : CB(CB), MainInterp(Interp), ErrStream(llvm::errs()){};
-
 std::vector<llvm::LineEditor::Completion>
 ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
+  auto Err = llvm::Error::success();
+  auto res = (*this)(Buffer, Pos, Err);
+  if (Err)
+    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+  return res;
+}
+
+std::vector<llvm::LineEditor::Completion>
+ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
+                              llvm::Error &ErrRes) const {
   std::vector<llvm::LineEditor::Completion> Comps;
   std::vector<CodeCompletionResult> Results;
   auto *CConsumer = new ReplCompletionConsumer(Results);
@@ -107,15 +113,15 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
 
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
+    ErrRes = std::move(Err);
 
-    llvm::logAllUnhandledErrors(std::move(Err), ErrStream, "error: ");
     return {};
   }
 
   auto Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
 
   if (auto Err = (*Interp)->CodeComplete(Buffer, Pos + 1, Lines)) {
-    llvm::logAllUnhandledErrors(std::move(Err), ErrStream, "error: ");
+    ErrRes = std::move(Err);
     return {};
   }
 

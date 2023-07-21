@@ -63,12 +63,11 @@ TEST(CodeCompletionTest, TwoDecls) {
 
 TEST(CodeCompletionTest, CompFunDeclsNoError) {
   auto Interp = createInterpreter();
-  std::string out;
-  auto rs = llvm::raw_string_ostream(out);
-  auto Completer = ReplListCompleter(CB, *Interp, rs);
+  auto Completer = ReplListCompleter(CB, *Interp);
+  auto Err = llvm::Error::success();
   std::vector<llvm::LineEditor::Completion> comps =
-    Completer(std::string("void app("), 9);
-  EXPECT_EQ((size_t)0, out.length());
+    Completer(std::string("void app("), 9, Err);
+  EXPECT_EQ((bool)Err, false);
 }
 
 } // anonymous namespace

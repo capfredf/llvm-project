@@ -15,8 +15,8 @@
 #include "llvm/LineEditor/LineEditor.h"
 
 namespace llvm {
-  class raw_ostream;
-  class StringRef;
+class StringRef;
+class Error;
 } // namespace llvm
 
 namespace clang {
@@ -27,13 +27,14 @@ class IncrementalCompilerBuilder;
 struct ReplListCompleter {
   IncrementalCompilerBuilder &CB;
   Interpreter &MainInterp;
-  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp);
-  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp, llvm::raw_ostream& ErrStream) :
-    CB(CB), MainInterp(Interp), ErrStream(ErrStream) {};
+  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp) :
+    CB(CB), MainInterp(Interp){};
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
                                                        size_t Pos) const;
+  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
+                                                       size_t Pos,
+                                                       llvm::Error &Err) const;
 private:
-  llvm::raw_ostream& ErrStream;
   std::vector<llvm::StringRef>
   toCodeCompleteStrings(const std::vector<CodeCompletionResult> &Results) const;
 
