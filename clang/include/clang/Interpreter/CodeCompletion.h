@@ -27,17 +27,16 @@ class IncrementalCompilerBuilder;
 struct ReplListCompleter {
   IncrementalCompilerBuilder &CB;
   Interpreter &MainInterp;
-  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp) :
-    CB(CB), MainInterp(Interp){};
+  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp)
+      : CB(CB), MainInterp(Interp){};
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
                                                        size_t Pos) const;
-  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
-                                                       size_t Pos,
-                                                       llvm::Error &Err) const;
+  std::vector<llvm::LineEditor::Completion>
+  operator()(llvm::StringRef Buffer, size_t Pos, llvm::Error &Err) const;
+
 private:
   std::vector<llvm::StringRef>
   toCodeCompleteStrings(const std::vector<CodeCompletionResult> &Results) const;
-
 };
 
 } // namespace clang

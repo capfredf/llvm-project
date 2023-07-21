@@ -1,11 +1,10 @@
 #include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Interpreter.h"
 
-#include "llvm/LineEditor/LineEditor.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "llvm/LineEditor/LineEditor.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -60,13 +59,12 @@ TEST(CodeCompletionTest, TwoDecls) {
   EXPECT_EQ((size_t)2, comps.size());
 }
 
-
 TEST(CodeCompletionTest, CompFunDeclsNoError) {
   auto Interp = createInterpreter();
   auto Completer = ReplListCompleter(CB, *Interp);
   auto Err = llvm::Error::success();
   std::vector<llvm::LineEditor::Completion> comps =
-    Completer(std::string("void app("), 9, Err);
+      Completer(std::string("void app("), 9, Err);
   EXPECT_EQ((bool)Err, false);
 }
 
