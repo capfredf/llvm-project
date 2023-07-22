@@ -272,6 +272,7 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
       break;
     }
   }
+  std::sort(CompletionStrings.begin(), CompletionStrings.end());
   return CompletionStrings;
 }
 

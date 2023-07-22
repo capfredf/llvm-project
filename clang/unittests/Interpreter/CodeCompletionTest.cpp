@@ -28,7 +28,8 @@ TEST(CodeCompletionTest, Sanity) {
   std::vector<llvm::LineEditor::Completion> comps =
       Completer(std::string("f"), 1);
   EXPECT_EQ((size_t)2, comps.size()); // foo and float
-  EXPECT_EQ(comps[0].TypedText, std::string("oo"));
+  EXPECT_EQ(comps[0].TypedText, std::string("loat"));
+  EXPECT_EQ(comps[1].TypedText, std::string("oo"));
 }
 
 TEST(CodeCompletionTest, SanityNoneValid) {
