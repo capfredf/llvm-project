@@ -32,46 +32,48 @@ clang::CodeCompleteOptions getClangCompleteOpts() {
   return Opts;
 }
 
-class CodeCompletionSubContext{
+class CodeCompletionSubContext {
 public:
-  virtual ~CodeCompletionSubContext() {};
-  virtual void HandleCodeCompleteResults(class Sema &S,
-                                         CodeCompletionResult *InResults,
-                                         unsigned NumResults,
-                                         std::vector<CodeCompletionResult>& Results) = 0;
+  virtual ~CodeCompletionSubContext(){};
+  virtual void
+  HandleCodeCompleteResults(class Sema &S, CodeCompletionResult *InResults,
+                            unsigned NumResults,
+                            std::vector<CodeCompletionResult> &Results) = 0;
 };
 
 class CCSubContextRegular : public CodeCompletionSubContext {
   StringRef prefix;
+
 public:
-  CCSubContextRegular(StringRef prefix) : prefix(prefix) {};
-  virtual ~CCSubContextRegular() {};
-  void HandleCodeCompleteResults(class Sema &S,
-                                 CodeCompletionResult *InResults,
-                                 unsigned NumResults,
-                                 std::vector<CodeCompletionResult>& Results) override;
+  CCSubContextRegular(StringRef prefix) : prefix(prefix){};
+  virtual ~CCSubContextRegular(){};
+  void HandleCodeCompleteResults(
+      class Sema &S, CodeCompletionResult *InResults, unsigned NumResults,
+      std::vector<CodeCompletionResult> &Results) override;
 };
 
 class CCSubContextCallSite : public CodeCompletionSubContext {
   StringRef calleeName;
-  std::optional<const FunctionDecl*> lookUp(CodeCompletionResult *InResults,
-                                     unsigned NumResults);
-public:
-  CCSubContextCallSite(StringRef calleeName) : calleeName(calleeName){}
-  virtual ~CCSubContextCallSite() {};
-  void HandleCodeCompleteResults(class Sema &S,
-                                 CodeCompletionResult *InResults,
-                                 unsigned NumResults,
-                                 std::vector<CodeCompletionResult>& Results) override;
-};
+  StringRef Prefix;
+  std::optional<const FunctionDecl *> lookUp(CodeCompletionResult *InResults,
+                                             unsigned NumResults);
 
+public:
+  CCSubContextCallSite(StringRef calleeName, StringRef Prefix)
+      : calleeName(calleeName), Prefix(Prefix) {}
+  virtual ~CCSubContextCallSite(){};
+  void HandleCodeCompleteResults(
+      class Sema &S, CodeCompletionResult *InResults, unsigned NumResults,
+      std::vector<CodeCompletionResult> &Results) override;
+};
 
 class ReplCompletionConsumer : public CodeCompleteConsumer {
 public:
-  ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results, CodeCompletionSubContext *SubCtxt)
-    : CodeCompleteConsumer(getClangCompleteOpts()),
-      CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
-      CCTUInfo(CCAllocator), Results(Results){
+  ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results,
+                         CodeCompletionSubContext *SubCtxt)
+      : CodeCompleteConsumer(getClangCompleteOpts()),
+        CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
+        CCTUInfo(CCAllocator), Results(Results) {
     this->SubCtxt.reset(SubCtxt);
   }
   void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
@@ -93,16 +95,16 @@ private:
   std::unique_ptr<CodeCompletionSubContext> SubCtxt;
 };
 
-void CCSubContextRegular::HandleCodeCompleteResults(class Sema &S,
-                                                    CodeCompletionResult *InResults,
-                                                    unsigned NumResults,
-                                                    std::vector<CodeCompletionResult>& Results) {
+void CCSubContextRegular::HandleCodeCompleteResults(
+    class Sema &S, CodeCompletionResult *InResults, unsigned NumResults,
+    std::vector<CodeCompletionResult> &Results) {
   for (unsigned I = 0; I < NumResults; ++I) {
     auto &Result = InResults[I];
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       // if (!Filter.empty() && !(Result.Declaration->getIdentifier() &&
-      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter))) {
+      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter)))
+      //                          {
       //   continue;
       // }
       if (Result.Hidden) {
@@ -120,8 +122,8 @@ void CCSubContextRegular::HandleCodeCompleteResults(class Sema &S,
       //   }
       //   switch ((*CCS)[0].Kind) {
       //   case CodeCompletionString::CK_ResultType:
-      //     LLVM_DEBUG(llvm::dbgs() << "this is a function: " << (*CCS)[1].Text << "\n");
-      //     break;
+      //     LLVM_DEBUG(llvm::dbgs() << "this is a function: " << (*CCS)[1].Text
+      //     << "\n"); break;
       //   default:
       //     continue;
       //   }
@@ -152,21 +154,24 @@ void CCSubContextRegular::HandleCodeCompleteResults(class Sema &S,
   }
 }
 
-std::optional<const FunctionDecl*> CCSubContextCallSite::lookUp(CodeCompletionResult *InResults,
-                                                         unsigned NumResults) {
+std::optional<const FunctionDecl *>
+CCSubContextCallSite::lookUp(CodeCompletionResult *InResults,
+                             unsigned NumResults) {
   for (unsigned I = 0; I < NumResults; I++) {
     auto &Result = InResults[I];
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       // if (!Filter.empty() && !(Result.Declaration->getIdentifier() &&
-      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter))) {
+      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter)))
+      //                          {
       //   continue;
       // }
       if (Result.Hidden) {
         continue;
       }
       if (const auto *Function = Result.Declaration->getAsFunction()) {
-        if (Function->isDestroyingOperatorDelete() || Function->isOverloadedOperator()) {
+        if (Function->isDestroyingOperatorDelete() ||
+            Function->isOverloadedOperator()) {
           continue;
         }
 
@@ -190,10 +195,9 @@ std::optional<const FunctionDecl*> CCSubContextCallSite::lookUp(CodeCompletionRe
   return std::nullopt;
 }
 
-void CCSubContextCallSite::HandleCodeCompleteResults(class Sema &S,
-                                                     CodeCompletionResult *InResults,
-                                                     unsigned NumResults,
-                                                     std::vector<CodeCompletionResult>& Results) {
+void CCSubContextCallSite::HandleCodeCompleteResults(
+    class Sema &S, CodeCompletionResult *InResults, unsigned NumResults,
+    std::vector<CodeCompletionResult> &Results) {
   auto Function = lookUp(InResults, NumResults);
   if (!Function)
     return;
@@ -202,7 +206,8 @@ void CCSubContextCallSite::HandleCodeCompleteResults(class Sema &S,
     switch (Result.Kind) {
     case CodeCompletionResult::RK_Declaration:
       // if (!Filter.empty() && !(Result.Declaration->getIdentifier() &&
-      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter))) {
+      //                          Result.Declaration->getIdentifier()->getName().startswith(Filter)))
+      //                          {
       //   continue;
       // }
       if (Result.Hidden) {
@@ -211,22 +216,26 @@ void CCSubContextCallSite::HandleCodeCompleteResults(class Sema &S,
       if (!Result.Declaration->getIdentifier()) {
         continue;
       }
-      if (auto* DD = dyn_cast<ValueDecl>(Result.Declaration)) {
+      if (auto *DD = dyn_cast<ValueDecl>(Result.Declaration)) {
+        if (!DD->getName().startswith(Prefix))
+          continue;
+
         auto ArgumentType = DD->getType();
         auto RequiredType = (*Function)->getParamDecl(0)->getType();
         if (RequiredType->isReferenceType()) {
           QualType RT = RequiredType->castAs<ReferenceType>()->getPointeeType();
           Sema::ReferenceConversions RefConv;
           Sema::ReferenceCompareResult RefRelationship =
-            S.CompareReferenceRelationship(SourceLocation(),ArgumentType, RT, &RefConv);
+              S.CompareReferenceRelationship(SourceLocation(), ArgumentType, RT,
+                                             &RefConv);
           if (RefRelationship == Sema::Ref_Compatible) {
             Results.push_back(Result);
           }
-        }
-        else if (S.Context.hasSameType(ArgumentType, RequiredType)) {
+        } else if (S.Context.hasSameType(ArgumentType, RequiredType)) {
           Results.push_back(Result);
         }
-        LLVM_DEBUG(llvm::dbgs() << DD->getName() << " : " << DD->getType() << "\n");
+        LLVM_DEBUG(llvm::dbgs()
+                   << DD->getName() << " : " << DD->getType() << "\n");
       }
       break;
     default:
@@ -234,7 +243,6 @@ void CCSubContextCallSite::HandleCodeCompleteResults(class Sema &S,
     }
   }
 }
-
 
 void ReplCompletionConsumer::ProcessCodeCompleteResults(
     class Sema &S, CodeCompletionContext Context,
@@ -267,34 +275,38 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
   return CompletionStrings;
 }
 
-static std::pair<StringRef, CodeCompletionSubContext*> getCodeCompletionSubContext(llvm::StringRef CurInput) {
-  size_t lparen_pos = CurInput.rfind("(");
-  if (lparen_pos == llvm::StringRef::npos) {
+static std::pair<StringRef, CodeCompletionSubContext *>
+getCodeCompletionSubContext(llvm::StringRef CurInput, size_t Pos) {
+  size_t LeftParenPos = CurInput.rfind("(");
+  if (LeftParenPos == llvm::StringRef::npos) {
     size_t space_pos = CurInput.rfind(" ");
-    llvm::StringRef s;
+    llvm::StringRef Prefix;
     if (space_pos == llvm::StringRef::npos) {
-      s = CurInput;
+      Prefix = CurInput;
     } else {
-      s = CurInput.substr(space_pos + 1);
+      Prefix = CurInput.substr(space_pos + 1);
     }
 
-    return {s, new CCSubContextRegular(s)};
+    return {Prefix, new CCSubContextRegular(Prefix)};
   }
-  auto subs = CurInput.substr(0, lparen_pos);
+  auto subs = CurInput.substr(0, LeftParenPos);
   size_t start_pos = subs.rfind(" ");
   if (start_pos == llvm::StringRef::npos) {
     start_pos = 0;
   }
-  return {"", new CCSubContextCallSite(subs.substr(start_pos, lparen_pos - start_pos))};
+  auto Prefix = CurInput.substr(LeftParenPos + 1, Pos);
+  return {Prefix,
+          new CCSubContextCallSite(
+              subs.substr(start_pos, LeftParenPos - start_pos), Prefix)};
 }
 
 std::vector<llvm::LineEditor::Completion>
 ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
   auto Err = llvm::Error::success();
-  auto res = (*this)(Buffer, Pos, Err);
+  auto Res = (*this)(Buffer, Pos, Err);
   if (Err)
     llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  return res;
+  return Res;
 }
 
 std::vector<llvm::LineEditor::Completion>
@@ -302,7 +314,7 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
                               llvm::Error &ErrRes) const {
   std::vector<llvm::LineEditor::Completion> Comps;
   std::vector<CodeCompletionResult> Results;
-  auto [s, SubCtxt] = getCodeCompletionSubContext(Buffer);
+  auto [s, SubCtxt] = getCodeCompletionSubContext(Buffer, Pos);
   auto *CConsumer = new ReplCompletionConsumer(Results, SubCtxt);
   auto Interp = Interpreter::createForCodeCompletion(
       CB, MainInterp.getCompilerInstance(), CConsumer);
@@ -310,7 +322,6 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
     ErrRes = std::move(Err);
-
     return {};
   }
 
@@ -321,9 +332,9 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
     return {};
   }
 
-
   for (auto c : toCodeCompleteStrings(Results)) {
-    Comps.push_back(llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
+    Comps.push_back(
+        llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
   }
   return Comps;
 }

@@ -68,7 +68,7 @@ TEST(CodeCompletionTest, CompFunDeclsNoError) {
   EXPECT_EQ((bool)Err, false);
 }
 
-TEST(CodeCompletionTest, TempTypedDirected) {
+TEST(CodeCompletionTest, TypedDirected) {
   auto Interp = createInterpreter();
   if (auto R = Interp->ParseAndExecute("int application = 12;")) {
     consumeError(std::move(R));
@@ -83,8 +83,30 @@ TEST(CodeCompletionTest, TempTypedDirected) {
     return;
   }
   auto Completer = ReplListCompleter(CB, *Interp);
-  std::vector<llvm::LineEditor::Completion> comps =
-      Completer(std::string("add("), 3);
-  EXPECT_EQ((size_t)1, comps.size());
+
+  {
+    auto comps = Completer(std::string("add("), 3);
+    EXPECT_EQ((size_t)1, comps.size());
+  }
+
+  if (auto R = Interp->ParseAndExecute("int banana = 42;")) {
+    consumeError(std::move(R));
+    return;
+  }
+
+  {
+    auto comps = Completer(std::string("add("), 4);
+    EXPECT_EQ((size_t)2, comps.size());
+    EXPECT_EQ(comps[0].TypedText , "application");
+    EXPECT_EQ(comps[1].TypedText , "banana");
+  }
+
+  {
+    auto comps = Completer(std::string("add(b"), 5);
+    EXPECT_EQ((size_t)1, comps.size());
+    EXPECT_EQ(comps[0].TypedText , "anana");
+  }
+
+
 }
 } // anonymous namespace
