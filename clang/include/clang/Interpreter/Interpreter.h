@@ -18,6 +18,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Interpreter/Value.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -35,8 +36,8 @@ class ThreadSafeContext;
 
 namespace clang {
 
-class CodeCompleteConsumer;
-class CodeCompletionResult;
+// class CodeCompleteConsumer;
+// class CodeCompletionResult;
 class CompilerInstance;
 class IncrementalExecutor;
 class IncrementalParser;
