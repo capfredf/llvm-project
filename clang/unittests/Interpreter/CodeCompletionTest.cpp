@@ -32,6 +32,7 @@ TEST(CodeCompletionTest, Sanity) {
   EXPECT_EQ(comps[1].TypedText, std::string("oo"));
 }
 
+
 TEST(CodeCompletionTest, SanityNoneValid) {
   auto Interp = createInterpreter();
   if (auto R = Interp->ParseAndExecute("int foo = 12;")) {
@@ -107,7 +108,38 @@ TEST(CodeCompletionTest, TypedDirected) {
     EXPECT_EQ((size_t)1, comps.size());
     EXPECT_EQ(comps[0].TypedText , "anana");
   }
-
-
 }
+
+TEST(CodeCompletionTest, SanityClasses) {
+  auto Interp = createInterpreter();
+  if (auto R = Interp->ParseAndExecute("struct Apple{};")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("void takeApple(Apple &a1){}")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("Apple a1;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("void takeAppleCopy(Apple a1){}")) {
+    consumeError(std::move(R));
+    return;
+  }
+  auto Completer = ReplListCompleter(CB, *Interp);
+  {
+    std::vector<llvm::LineEditor::Completion> comps =
+      Completer(std::string("takeApple("), 10);
+    EXPECT_EQ((size_t)1, comps.size());
+    EXPECT_EQ(comps[0].TypedText, std::string("a1"));
+  }
+  std::vector<llvm::LineEditor::Completion> comps =
+      Completer(std::string("takeAppleCopy("), 14);
+  EXPECT_EQ((size_t)1, comps.size());
+  EXPECT_EQ(comps[0].TypedText, std::string("a1"));
+}
+
+
 } // anonymous namespace
