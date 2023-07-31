@@ -28,6 +28,7 @@ class LLVMContext;
 
 namespace clang {
 class ASTConsumer;
+class CodeCompletionResult;
 class CodeGenerator;
 class CompilerInstance;
 class IncrementalAction;
@@ -63,7 +64,8 @@ public:
   IncrementalParser(Interpreter &Interp,
                     std::unique_ptr<CompilerInstance> Instance,
                     llvm::LLVMContext &LLVMCtx, llvm::Error &Err,
-                    const CompilerInstance *ParentCI = nullptr);
+                    const CompilerInstance *ParentCI,
+                    std::vector<CodeCompletionResult>& CCResults);
   virtual ~IncrementalParser();
 
   CompilerInstance *getCI() { return CI.get(); }

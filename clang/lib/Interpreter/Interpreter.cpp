@@ -37,6 +37,7 @@
 #include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Value.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Sema/Lookup.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
@@ -229,25 +230,27 @@ IncrementalCompilerBuilder::CreateCudaHost() {
   return IncrementalCompilerBuilder::createCuda(false);
 }
 
-Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
-                         llvm::Error &Err) {
-  llvm::ErrorAsOutParameter EAO(&Err);
-  auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
-  TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
-  IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
-                                                   *TSCtx->getContext(), Err);
-}
-
 Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err,
-                         CodeCompleteConsumer* CConsumer,
+                         std::vector<CodeCompletionResult> &CCResults,
                          const CompilerInstance *ParentCI) {
   llvm::ErrorAsOutParameter EAO(&Err);
   auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
   TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
-  CI->setCodeCompletionConsumer(CConsumer);
-  IncrParser = std::make_unique<IncrementalParser>(
-      *this, std::move(CI), *TSCtx->getContext(), Err, ParentCI);
+  IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
+                                                   *TSCtx->getContext(), Err,
+                                                   ParentCI,
+                                                   CCResults);
 }
+
+// Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err,
+//                          const CompilerInstance *ParentCI) {
+//   llvm::ErrorAsOutParameter EAO(&Err);
+//   auto LLVMCtx = std::make_unique<llvm::LLVMContext>();
+//   TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
+//   // CI->setCodeCompletionConsumer(CConsumer);
+//   IncrParser = std::make_unique<IncrementalParser>(
+//       *this, std::move(CI), *TSCtx->getContext(), Err, ParentCI);
+// }
 
 Interpreter::~Interpreter() {
   if (IncrExecutor) {
@@ -282,10 +285,10 @@ const char *const Runtimes = R"(
 )";
 
 llvm::Expected<std::unique_ptr<Interpreter>>
-Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
+Interpreter::create(std::unique_ptr<CompilerInstance> CI, std::vector<CodeCompletionResult> &CCResult, const CompilerInstance *ParentCI) {
   llvm::Error Err = llvm::Error::success();
   auto Interp =
-      std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err));
+    std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err, CCResult, ParentCI));
   if (Err)
     return std::move(Err);
   auto PTU = Interp->Parse(Runtimes);
@@ -300,30 +303,31 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
   return std::move(Interp);
 }
 
-llvm::Expected<std::unique_ptr<Interpreter>>
-Interpreter::createForCodeCompletion(
-    IncrementalCompilerBuilder &CB, const CompilerInstance *ParentCI,
-    CodeCompleteConsumer* CConsumer) {
-  auto CI = CB.CreateCpp();
-  if (auto Err = CI.takeError()) {
-    return std::move(Err);
-  }
+// llvm::Expected<std::unique_ptr<Interpreter>>
+// Interpreter::createForCodeCompletion(IncrementalCompilerBuilder &CB,
+//                                      const CompilerInstance *ParentCI,
+//                                      CodeCompleteConsumer *CConsumer,
+//                                      size_t Col, size_t Line) {
+//   auto CI = CB.CreateCpp();
+//   if (auto Err = CI.takeError()) {
+//     return std::move(Err);
+//   }
 
-  (*CI)->getPreprocessorOpts().SingleFileParseMode = true;
+//   (*CI)->getPreprocessorOpts().SingleFileParseMode = true;
 
-  (*CI)->getLangOpts().SpellChecking = false;
-  (*CI)->getLangOpts().DelayedTemplateParsing = false;
+//   (*CI)->getLangOpts().SpellChecking = false;
+//   (*CI)->getLangOpts().DelayedTemplateParsing = false;
 
-  llvm::Error Err = llvm::Error::success();
-  auto Interp = std::unique_ptr<Interpreter>(
-      new Interpreter(std::move(*CI), Err, CConsumer, ParentCI));
+//   llvm::Error Err = llvm::Error::success();
+//   auto Interp = std::unique_ptr<Interpreter>(
+//       new Interpreter(std::move(*CI), Err, CConsumer, ParentCI));
 
-  if (Err)
-    return std::move(Err);
+//   if (Err)
+//     return std::move(Err);
 
-  Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
-  return std::move(Interp);
-}
+//   Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
+//   return std::move(Interp);
+// }
 
 llvm::Expected<std::unique_ptr<Interpreter>>
 Interpreter::createWithCUDA(std::unique_ptr<CompilerInstance> CI,
@@ -337,7 +341,8 @@ Interpreter::createWithCUDA(std::unique_ptr<CompilerInstance> CI,
   OverlayVFS->pushOverlay(IMVFS);
   CI->createFileManager(OverlayVFS);
 
-  auto Interp = Interpreter::create(std::move(CI));
+  std::vector<CodeCompletionResult> DummyRes;
+  auto Interp = Interpreter::create(std::move(CI), DummyRes);
   if (auto E = Interp.takeError())
     return std::move(E);
 

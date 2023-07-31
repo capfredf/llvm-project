@@ -35,11 +35,11 @@ class ThreadSafeContext;
 
 namespace clang {
 
+class CodeCompleteConsumer;
 class CodeCompletionResult;
 class CompilerInstance;
 class IncrementalExecutor;
 class IncrementalParser;
-class CodeCompleteConsumer;
 
 /// Create a pre-configured \c CompilerInstance for incremental processing.
 class IncrementalCompilerBuilder {
@@ -83,9 +83,8 @@ class Interpreter {
   // An optional parser for CUDA offloading
   std::unique_ptr<IncrementalParser> DeviceParser;
 
-  Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
   Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err,
-              CodeCompleteConsumer* CConsumer,
+              std::vector<CodeCompletionResult> &CCResult,
               const CompilerInstance *ParentCI = nullptr);
 
   llvm::Error CreateExecutor();
@@ -100,16 +99,13 @@ public:
   ~Interpreter();
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
-  create(std::unique_ptr<CompilerInstance> CI);
+  create(std::unique_ptr<CompilerInstance> CI,
+         std::vector<CodeCompletionResult> &CCResults,
+         const CompilerInstance *ParentCI = nullptr);
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                  std::unique_ptr<CompilerInstance> DCI);
-
-  static llvm::Expected<std::unique_ptr<Interpreter>>
-  createForCodeCompletion(IncrementalCompilerBuilder &CB,
-                          const CompilerInstance *ParentCI,
-                          CodeCompleteConsumer* CConsumer);
 
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();

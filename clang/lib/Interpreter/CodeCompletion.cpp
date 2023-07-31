@@ -29,29 +29,10 @@ clang::CodeCompleteOptions getClangCompleteOpts() {
   return Opts;
 }
 
-class ReplCompletionConsumer : public CodeCompleteConsumer {
-public:
-  ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results)
+ReplCompletionConsumer::ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results)
       : CodeCompleteConsumer(getClangCompleteOpts()),
         CCAllocator(std::make_shared<GlobalCodeCompletionAllocator>()),
         CCTUInfo(CCAllocator), Results(Results){};
-  void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
-                                  CodeCompletionResult *InResults,
-                                  unsigned NumResults) final;
-
-  clang::CodeCompletionAllocator &getAllocator() override {
-    return *CCAllocator;
-  }
-
-  clang::CodeCompletionTUInfo &getCodeCompletionTUInfo() override {
-    return CCTUInfo;
-  }
-
-private:
-  std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
-  CodeCompletionTUInfo CCTUInfo;
-  std::vector<CodeCompletionResult> &Results;
-};
 
 void ReplCompletionConsumer::ProcessCodeCompleteResults(
     class Sema &S, CodeCompletionContext Context,
@@ -107,9 +88,13 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
                               llvm::Error &ErrRes) const {
   std::vector<llvm::LineEditor::Completion> Comps;
   std::vector<CodeCompletionResult> Results;
-  auto *CConsumer = new ReplCompletionConsumer(Results);
-  auto Interp = Interpreter::createForCodeCompletion(
-      CB, MainInterp.getCompilerInstance(), CConsumer);
+
+  auto CI = CB.CreateCpp();
+  if (auto Err = CI.takeError()) {
+    ErrRes = std::move(Err);
+    return {};
+  }
+  auto Interp = Interpreter::create(std::move(*CI), Results, MainInterp.getCompilerInstance());
 
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;

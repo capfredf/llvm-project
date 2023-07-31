@@ -19,7 +19,9 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/FrontendTool/Utils.h"
+#include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/Option/ArgList.h"
@@ -116,12 +118,14 @@ public:
 class IncrementalAction : public WrapperFrontendAction {
 private:
   bool IsTerminating = false;
+  std::vector<CodeCompletionResult>& CCResults;
   const CompilerInstance *ParentCI;
 
 public:
   IncrementalAction(CompilerInstance &CI, llvm::LLVMContext &LLVMCtx,
                     llvm::Error &Err,
-                    const CompilerInstance *ParentCI = nullptr)
+                    const CompilerInstance *ParentCI,
+                    std::vector<CodeCompletionResult>& CCResults)
       : WrapperFrontendAction([&]() {
           llvm::ErrorAsOutParameter EAO(&Err);
           std::unique_ptr<FrontendAction> Act;
@@ -156,7 +160,7 @@ public:
           }
           return Act;
         }()),
-        ParentCI(ParentCI) {}
+        CCResults(CCResults), ParentCI(ParentCI){}
   FrontendAction *getWrapped() const { return WrappedAction.get(); }
   TranslationUnitKind getTranslationUnitKind() override {
     return TU_Incremental;
@@ -165,6 +169,14 @@ public:
     CompilerInstance &CI = getCompilerInstance();
     assert(CI.hasPreprocessor() && "No PP!");
 
+    if (ParentCI) {
+      // in code completion mode,
+      CI.getPreprocessorOpts().SingleFileParseMode = true;
+
+      CI.getLangOpts().SpellChecking = false;
+      CI.getLangOpts().DelayedTemplateParsing = false;
+      CI.setCodeCompletionConsumer(new ReplCompletionConsumer(CCResults));
+    }
     // FIXME: Move the truncation aspect of this into Sema, we delayed this till
     // here so the source manager would be initialized.
     if (hasCodeCompletionSupport() &&
@@ -222,10 +234,11 @@ IncrementalParser::IncrementalParser(Interpreter &Interp,
                                      std::unique_ptr<CompilerInstance> Instance,
                                      llvm::LLVMContext &LLVMCtx,
                                      llvm::Error &Err,
-                                     const CompilerInstance *ParentCI)
+                                     const CompilerInstance *ParentCI,
+                                     std::vector<CodeCompletionResult>& CCResults)
     : CI(std::move(Instance)) {
   llvm::ErrorAsOutParameter EAO(&Err);
-  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err, ParentCI);
+  Act = std::make_unique<IncrementalAction>(*CI, LLVMCtx, Err, ParentCI, CCResults);
   if (Err)
     return;
   CI->ExecuteAction(*Act);
