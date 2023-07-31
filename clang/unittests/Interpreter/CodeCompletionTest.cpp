@@ -141,5 +141,33 @@ TEST(CodeCompletionTest, SanityClasses) {
   EXPECT_EQ(comps[0].TypedText, std::string("a1"));
 }
 
-
+TEST(CodeCompletionTest, SubClassing) {
+  auto Interp = createInterpreter();
+  if (auto R = Interp->ParseAndExecute("struct Fruit {};")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("struct Apple : Fruit{};")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("void takeFruit(Fruit &f){}")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("Apple a1;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  if (auto R = Interp->ParseAndExecute("Fruit f1;")) {
+    consumeError(std::move(R));
+    return;
+  }
+  auto Completer = ReplListCompleter(CB, *Interp);
+  std::vector<llvm::LineEditor::Completion> comps =
+    Completer(std::string("takeFruit("), 10);
+  EXPECT_EQ((size_t)2, comps.size());
+  EXPECT_EQ(comps[0].TypedText, std::string("a1"));
+  EXPECT_EQ(comps[1].TypedText, std::string("f1"));
+}
 } // anonymous namespace

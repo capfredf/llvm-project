@@ -226,9 +226,11 @@ void CCSubContextCallSite::HandleCodeCompleteResults(
           QualType RT = RequiredType->castAs<ReferenceType>()->getPointeeType();
           Sema::ReferenceConversions RefConv;
           Sema::ReferenceCompareResult RefRelationship =
-              S.CompareReferenceRelationship(SourceLocation(), ArgumentType, RT,
+            S.CompareReferenceRelationship(SourceLocation(), RT, ArgumentType,
                                              &RefConv);
           if (RefRelationship == Sema::Ref_Compatible) {
+            Results.push_back(Result);
+          } else if (RefRelationship == Sema::Ref_Related) {
             Results.push_back(Result);
           }
         } else if (S.Context.hasSameType(ArgumentType, RequiredType)) {
