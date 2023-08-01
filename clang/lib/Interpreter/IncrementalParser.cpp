@@ -358,21 +358,27 @@ IncrementalParser::createSourceFile(llvm::StringRef SourceName,
   return {FID, NewLoc};
 }
 
+bool IncrementalParser::isCodeCompletionEnabled(){
+  return !(CI->getFrontendOpts().CodeCompletionAt.FileName.empty());
+}
+
 llvm::Expected<PartialTranslationUnit &>
 IncrementalParser::Parse(llvm::StringRef input) {
   Preprocessor &PP = CI->getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
   std::ostringstream SourceName;
-  auto FileName = CI->getFrontendOpts().CodeCompletionAt.FileName;
 
-  if (FileName.empty()) {
-    SourceName << "input_line_" << InputCount++;
+  if (isCodeCompletionEnabled()) {
+    SourceName << CI->getFrontendOpts().CodeCompletionAt.FileName;
   } else {
-    SourceName << FileName;
+    SourceName << "input_line_" << InputCount++;
   }
 
   auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
-  if (!FileName.empty()) {
+
+  if (isCodeCompletionEnabled()) {
+    // createCodeCompletionConsumer enables the code completion point, which
+    // must happen after the source file is created.
     CI->createCodeCompletionConsumer();
   }
 
@@ -388,7 +394,8 @@ IncrementalParser::Parse(llvm::StringRef input) {
     return std::move(PTU.takeError());
   }
 
-  if (!FileName.empty()) {
+  if (isCodeCompletionEnabled()) {
+    // there is no need to do extra lexing for code completion
     return PTU;
   }
 

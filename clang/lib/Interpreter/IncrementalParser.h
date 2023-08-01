@@ -87,6 +87,7 @@ public:
   std::unique_ptr<llvm::Module> GenModule();
 
 private:
+  bool isCodeCompletionEnabled();
   llvm::Expected<PartialTranslationUnit &> ParseOrWrapTopLevelDecl();
 
   llvm::Expected<PartialTranslationUnit &> ParseForPTU(FileID FID,
