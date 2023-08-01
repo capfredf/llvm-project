@@ -15,7 +15,7 @@ auto CB = clang::IncrementalCompilerBuilder();
 std::vector<CodeCompletionResult> res;
 static std::unique_ptr<Interpreter> createInterpreter() {
   auto CI = cantFail(CB.CreateCpp());
-  return cantFail(clang::Interpreter::create(std::move(CI), res));
+  return cantFail(clang::Interpreter::create(std::move(CI)));
 }
 
 TEST(CodeCompletionTest, Sanity) {

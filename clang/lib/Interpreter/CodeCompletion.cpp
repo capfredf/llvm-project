@@ -94,7 +94,10 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
     ErrRes = std::move(Err);
     return {};
   }
-  auto Interp = Interpreter::create(std::move(*CI), Results, MainInterp.getCompilerInstance());
+
+  size_t Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
+  auto CFG = CodeCompletionCfg{"input_line_[Completion]", 1, Lines, const_cast<CompilerInstance*>(MainInterp.getCompilerInstance()), Results};
+  auto Interp = Interpreter::create(std::move(*CI), CFG);
 
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
@@ -103,7 +106,7 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
     return {};
   }
 
-  auto Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
+
 
   if (auto Err = (*Interp)->CodeComplete(Buffer, Pos + 1, Lines)) {
     ErrRes = std::move(Err);

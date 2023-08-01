@@ -32,7 +32,6 @@
 using namespace clang;
 
 namespace {
-std::vector<CodeCompletionResult> res;
 using Args = std::vector<const char *>;
 static std::unique_ptr<Interpreter>
 createInterpreter(const Args &ExtraArgs = {},
@@ -44,7 +43,7 @@ createInterpreter(const Args &ExtraArgs = {},
   auto CI = cantFail(CB.CreateCpp());
   if (Client)
     CI->getDiagnostics().setClient(Client, /*ShouldOwnClient=*/false);
-  return cantFail(clang::Interpreter::create(std::move(CI), res));
+  return cantFail(clang::Interpreter::create(std::move(CI)));
 }
 
 TEST(InterpreterTest, CatchException) {

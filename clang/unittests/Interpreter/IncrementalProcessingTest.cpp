@@ -56,9 +56,7 @@ TEST(IncrementalProcessing, EmitCXXGlobalInitFunc) {
   CB.SetCompilerArgs(ClangArgv);
   auto CI = cantFail(CB.CreateCpp());
 
-  std::vector<CodeCompletionResult> res;
-
-  auto Interp = llvm::cantFail(Interpreter::create(std::move(CI), res));
+  auto Interp = llvm::cantFail(Interpreter::create(std::move(CI)));
 
   std::array<clang::PartialTranslationUnit *, 2> PTUs;
 

@@ -75,6 +75,14 @@ private:
   llvm::StringRef CudaSDKPath;
 };
 
+struct CodeCompletionCfg {
+  llvm::StringRef FileName;
+  size_t Col;
+  size_t Line;
+  CompilerInstance *ParentCI = nullptr;
+  std::vector<CodeCompletionResult> &CCResult;
+};
+
 /// Provides top-level interfaces for incremental compilation and execution.
 class Interpreter {
   std::unique_ptr<llvm::orc::ThreadSafeContext> TSCtx;
@@ -101,8 +109,7 @@ public:
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
   create(std::unique_ptr<CompilerInstance> CI,
-         std::vector<CodeCompletionResult> &CCResults,
-         const CompilerInstance *ParentCI = nullptr);
+         std::optional<CodeCompletionCfg> CCCfg = std::nullopt);
 
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,

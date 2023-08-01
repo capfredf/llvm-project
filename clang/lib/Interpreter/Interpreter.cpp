@@ -284,11 +284,19 @@ const char *const Runtimes = R"(
     }
 )";
 
+std::vector<CodeCompletionResult> DummyRes;
+
 llvm::Expected<std::unique_ptr<Interpreter>>
-Interpreter::create(std::unique_ptr<CompilerInstance> CI, std::vector<CodeCompletionResult> &CCResult, const CompilerInstance *ParentCI) {
+Interpreter::create(std::unique_ptr<CompilerInstance> CI, std::optional<CodeCompletionCfg> CCCfg) {
   llvm::Error Err = llvm::Error::success();
-  auto Interp =
-    std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err, CCResult, ParentCI));
+  std::unique_ptr<Interpreter> Interp;
+  if (CCCfg) {
+    Interp = std::unique_ptr<Interpreter>(
+        new Interpreter(std::move(CI), Err, CCCfg->CCResult, CCCfg->ParentCI));
+  } else {
+    Interp = std::unique_ptr<Interpreter>(
+        new Interpreter(std::move(CI), Err, DummyRes));
+  }
   if (Err)
     return std::move(Err);
   auto PTU = Interp->Parse(Runtimes);
@@ -341,8 +349,7 @@ Interpreter::createWithCUDA(std::unique_ptr<CompilerInstance> CI,
   OverlayVFS->pushOverlay(IMVFS);
   CI->createFileManager(OverlayVFS);
 
-  std::vector<CodeCompletionResult> DummyRes;
-  auto Interp = Interpreter::create(std::move(CI), DummyRes);
+  auto Interp = Interpreter::create(std::move(CI));
   if (auto E = Interp.takeError())
     return std::move(E);
 

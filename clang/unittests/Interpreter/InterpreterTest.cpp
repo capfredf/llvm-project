@@ -41,7 +41,6 @@ REPL_EXTERNAL_VISIBILITY void setGlobal(int val) { Global = val; }
 
 namespace {
 using Args = std::vector<const char *>;
-std::vector<CodeCompletionResult> res;
 
 static std::unique_ptr<Interpreter>
 createInterpreter(const Args &ExtraArgs = {},
@@ -53,7 +52,7 @@ createInterpreter(const Args &ExtraArgs = {},
   auto CI = cantFail(CB.CreateCpp());
   if (Client)
     CI->getDiagnostics().setClient(Client, /*ShouldOwnClient=*/false);
-  return cantFail(clang::Interpreter::create(std::move(CI), res));
+  return cantFail(clang::Interpreter::create(std::move(CI)));
 }
 
 static size_t DeclsSize(TranslationUnitDecl *PTUDecl) {
