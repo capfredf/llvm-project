@@ -281,10 +281,10 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI, std::optional<CodeComp
   llvm::Error Err = llvm::Error::success();
   std::unique_ptr<Interpreter> Interp;
   if (CCCfg) {
-    // auto opts = CI->getFrontendOpts();
-    CI->getFrontendOpts().CodeCompletionAt.FileName = CCCfg->FileName;
-    CI->getFrontendOpts().CodeCompletionAt.Line = CCCfg->Line;
-    CI->getFrontendOpts().CodeCompletionAt.Column = CCCfg->Col;
+    auto& opts = CI->getFrontendOpts();
+    opts.CodeCompletionAt.FileName = CCCfg->FileName;
+    opts.CodeCompletionAt.Line = CCCfg->Line;
+    opts.CodeCompletionAt.Column = CCCfg->Col;
     Interp = std::unique_ptr<Interpreter>(
         new Interpreter(std::move(CI), Err, CCCfg->CCResult, CCCfg->ParentCI));
   } else {
