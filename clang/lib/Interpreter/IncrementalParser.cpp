@@ -359,26 +359,9 @@ IncrementalParser::createSourceFile(llvm::StringRef SourceName,
 }
 
 llvm::Expected<PartialTranslationUnit &>
-IncrementalParser::ParseForPTU(FileID FID, SourceLocation SrcLoc) {
-  // Create an uninitialized memory buffer, copy code in and append "\n"
-  Preprocessor &PP = CI->getPreprocessor();
-  assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
-
-  // NewLoc only used for diags.
-  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
-    return llvm::make_error<llvm::StringError>("Parsing failed. "
-                                               "Cannot enter source file.",
-                                               std::error_code());
-
-  auto PTU = ParseOrWrapTopLevelDecl();
-  if (!PTU)
-    return std::move(PTU.takeError());
-  return *PTU;
-}
-
-llvm::Expected<PartialTranslationUnit &>
 IncrementalParser::Parse(llvm::StringRef input) {
   Preprocessor &PP = CI->getPreprocessor();
+  assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
   std::ostringstream SourceName;
   auto FileName = CI->getFrontendOpts().CodeCompletionAt.FileName;
 
@@ -392,7 +375,14 @@ IncrementalParser::Parse(llvm::StringRef input) {
   if (!FileName.empty()) {
     CI->createCodeCompletionConsumer();
   }
-  auto PTU = ParseForPTU(FID, SrcLoc);
+
+  // NewLoc only used for diags.
+  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
+    return llvm::make_error<llvm::StringError>("Parsing failed. "
+                                               "Cannot enter source file.",
+                                               std::error_code());
+
+  auto PTU = ParseOrWrapTopLevelDecl();
 
   if (!PTU) {
     return std::move(PTU.takeError());
