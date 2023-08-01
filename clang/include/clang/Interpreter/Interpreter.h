@@ -18,7 +18,6 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Interpreter/Value.h"
-#include "clang/Sema/CodeCompleteConsumer.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -36,8 +35,8 @@ class ThreadSafeContext;
 
 namespace clang {
 
-// class CodeCompleteConsumer;
-// class CodeCompletionResult;
+class CodeCompleteConsumer;
+class CodeCompletionResult;
 class CompilerInstance;
 class IncrementalExecutor;
 class IncrementalParser;
@@ -117,7 +116,6 @@ public:
 
   const ASTContext &getASTContext() const;
   ASTContext &getASTContext();
-  llvm::Error CodeComplete(llvm::StringRef Input, size_t Col, size_t Line = 1);
   const CompilerInstance *getCompilerInstance() const;
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 

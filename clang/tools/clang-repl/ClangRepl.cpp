@@ -134,7 +134,6 @@ int main(int argc, const char **argv) {
     DeviceCI->LoadRequestedPlugins();
 
   std::unique_ptr<clang::Interpreter> Interp;
-  std::vector<clang::CodeCompletionResult> DummyCCR;
 
   if (CudaEnabled) {
     Interp = ExitOnErr(
@@ -147,7 +146,7 @@ int main(int argc, const char **argv) {
       ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
     }
   } else
-    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI), DummyCCR));
+    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
 
   for (const std::string &input : OptInputs) {
     if (auto Err = Interp->ParseAndExecute(input))

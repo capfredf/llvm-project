@@ -165,6 +165,7 @@ public:
   TranslationUnitKind getTranslationUnitKind() override {
     return TU_Incremental;
   }
+
   void ExecuteAction() override {
     CompilerInstance &CI = getCompilerInstance();
     assert(CI.hasPreprocessor() && "No PP!");
@@ -177,12 +178,6 @@ public:
       CI.getLangOpts().DelayedTemplateParsing = false;
       CI.setCodeCompletionConsumer(new ReplCompletionConsumer(CCResults));
     }
-    // FIXME: Move the truncation aspect of this into Sema, we delayed this till
-    // here so the source manager would be initialized.
-    if (hasCodeCompletionSupport() &&
-        !CI.getFrontendOpts().CodeCompletionAt.FileName.empty())
-      CI.createCodeCompletionConsumer();
-
     // Use a code completion consumer?
     CodeCompleteConsumer *CompletionConsumer = nullptr;
     if (CI.hasCodeCompletionConsumer())
@@ -334,31 +329,6 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   return LastPTU;
 }
 
-llvm::Error IncrementalParser::ParseForCodeCompletion(llvm::StringRef input,
-                                               size_t Col, size_t Line) {
-  Preprocessor &PP = CI->getPreprocessor();
-  assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
-
-  std::ostringstream SourceName;
-  SourceName << "input_line_[Completion]";
-
-  auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
-  auto FE = CI->getSourceManager().getFileEntryRefForID(FID);
-
-  PP.SetCodeCompletionPoint(*FE, Line, Col);
-
-  // NewLoc only used for diags.
-  if (PP.EnterSourceFile(FID, /*DirLookup=*/nullptr, SrcLoc))
-    return llvm::Error::success();;
-
-  auto PTU = ParseOrWrapTopLevelDecl();
-  if (auto Err = PTU.takeError()) {
-    return std::move(Err);
-  }
-
-  return llvm::Error::success();;
-}
-
 std::pair<FileID, SourceLocation>
 IncrementalParser::createSourceFile(llvm::StringRef SourceName,
                                     llvm::StringRef Input) {
@@ -410,13 +380,26 @@ llvm::Expected<PartialTranslationUnit &>
 IncrementalParser::Parse(llvm::StringRef input) {
   Preprocessor &PP = CI->getPreprocessor();
   std::ostringstream SourceName;
-  SourceName << "input_line_" << InputCount++;
+  auto FileName = CI->getFrontendOpts().CodeCompletionAt.FileName;
+
+  if (FileName.empty()) {
+    SourceName << "input_line_" << InputCount++;
+  } else {
+    SourceName << FileName;
+  }
 
   auto [FID, SrcLoc] = createSourceFile(SourceName.str(), input);
+  if (!FileName.empty()) {
+    CI->createCodeCompletionConsumer();
+  }
   auto PTU = ParseForPTU(FID, SrcLoc);
 
   if (!PTU) {
     return std::move(PTU.takeError());
+  }
+
+  if (!FileName.empty()) {
+    return PTU;
   }
 
   if (PP.getLangOpts().DelayedTemplateParsing) {

@@ -106,10 +106,8 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
     return {};
   }
 
-
-
-  if (auto Err = (*Interp)->CodeComplete(Buffer, Pos + 1, Lines)) {
-    ErrRes = std::move(Err);
+  if (auto PTU = (*Interp)->Parse(Buffer); !PTU) {
+    ErrRes = std::move(PTU.takeError());
     return {};
   }
 
