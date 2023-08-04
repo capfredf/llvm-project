@@ -101,7 +101,7 @@ struct ReplListCompleter {
 
     size_t Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
     auto CFG = clang::CodeCompletionCfg{
-        "input_line_[Completion]", 1, Lines,
+        Pos + 1, Lines,
         const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
         Results};
     auto Interp = clang::Interpreter::create(std::move(*CI), CFG);

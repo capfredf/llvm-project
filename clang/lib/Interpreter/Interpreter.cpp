@@ -282,7 +282,7 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI, std::optional<CodeComp
   std::unique_ptr<Interpreter> Interp;
   if (CCCfg) {
     auto& opts = CI->getFrontendOpts();
-    opts.CodeCompletionAt.FileName = CCCfg->FileName;
+    opts.CodeCompletionAt.FileName = CodeCompletionFileName;
     opts.CodeCompletionAt.Line = CCCfg->Line;
     opts.CodeCompletionAt.Column = CCCfg->Col;
     Interp = std::unique_ptr<Interpreter>(

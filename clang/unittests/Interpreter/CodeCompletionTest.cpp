@@ -30,7 +30,7 @@ static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
 
   size_t Lines = std::count(Prefix.begin(), Prefix.end(), '\n') + 1;
   auto CFG = clang::CodeCompletionCfg{
-      "input_line_[Completion]", 1, Lines,
+      Prefix.size(), Lines,
       const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
       Results};
 

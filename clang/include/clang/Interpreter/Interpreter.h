@@ -74,10 +74,10 @@ private:
   llvm::StringRef CudaSDKPath;
 };
 
+const std::string CodeCompletionFileName = "input_line_[Completion]";
 struct CodeCompletionCfg {
-  llvm::StringRef FileName;
   size_t Col;
-  size_t Line;
+  size_t Line = 1;
   CompilerInstance *ParentCI = nullptr;
   std::vector<CodeCompletionResult> &CCResult;
 };
