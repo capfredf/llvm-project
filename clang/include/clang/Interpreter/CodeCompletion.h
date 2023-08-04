@@ -12,18 +12,9 @@
 
 #ifndef LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
 #define LLVM_CLANG_INTERPRETER_CODE_COMPLETION_H
-#include "llvm/LineEditor/LineEditor.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 
-namespace llvm {
-class StringRef;
-class Error;
-} // namespace llvm
-
 namespace clang {
-class Interpreter;
-class IncrementalCompilerBuilder;
-
 class ReplCompletionConsumer : public CodeCompleteConsumer {
 public:
   ReplCompletionConsumer(std::vector<CodeCompletionResult> &Results);
@@ -31,13 +22,9 @@ public:
                                   CodeCompletionResult *InResults,
                                   unsigned NumResults) final;
 
-  clang::CodeCompletionAllocator &getAllocator() override {
-    return *CCAllocator;
-  }
+  CodeCompletionAllocator &getAllocator() override { return *CCAllocator; }
 
-  clang::CodeCompletionTUInfo &getCodeCompletionTUInfo() override {
-    return CCTUInfo;
-  }
+  CodeCompletionTUInfo &getCodeCompletionTUInfo() override { return CCTUInfo; }
 
 private:
   std::shared_ptr<GlobalCodeCompletionAllocator> CCAllocator;
@@ -45,21 +32,7 @@ private:
   std::vector<CodeCompletionResult> &Results;
 };
 
-
-struct ReplListCompleter {
-  IncrementalCompilerBuilder &CB;
-  Interpreter &MainInterp;
-  ReplListCompleter(IncrementalCompilerBuilder &CB, Interpreter &Interp)
-      : CB(CB), MainInterp(Interp){};
-  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
-                                                       size_t Pos) const;
-  std::vector<llvm::LineEditor::Completion>
-  operator()(llvm::StringRef Buffer, size_t Pos, llvm::Error &Err) const;
-
-private:
-  std::vector<llvm::StringRef>
-  toCodeCompleteStrings(const std::vector<CodeCompletionResult> &Results) const;
-};
-
+std::vector<llvm::StringRef> ConvertToCodeCompleteStrings(
+    const std::vector<clang::CodeCompletionResult> &Results);
 } // namespace clang
 #endif

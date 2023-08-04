@@ -12,10 +12,48 @@
 using namespace clang;
 namespace {
 auto CB = clang::IncrementalCompilerBuilder();
-std::vector<CodeCompletionResult> res;
+
 static std::unique_ptr<Interpreter> createInterpreter() {
   auto CI = cantFail(CB.CreateCpp());
   return cantFail(clang::Interpreter::create(std::move(CI)));
+}
+
+static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
+                                        llvm::StringRef Prefix,
+                                        llvm::Error &ErrR) {
+  std::vector<clang::CodeCompletionResult> Results;
+  auto CI = CB.CreateCpp();
+  if (auto Err = CI.takeError()) {
+    ErrR = std::move(Err);
+    return {};
+  }
+
+  size_t Lines = std::count(Prefix.begin(), Prefix.end(), '\n') + 1;
+  auto CFG = clang::CodeCompletionCfg{
+      "input_line_[Completion]", 1, Lines,
+      const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
+      Results};
+
+  auto Interp = clang::Interpreter::create(std::move(*CI), CFG);
+  if (auto Err = Interp.takeError()) {
+    // log the error and returns an empty vector;
+    ErrR = std::move(Err);
+
+    return {};
+  }
+
+  if (auto PTU = (*Interp)->Parse(Prefix); !PTU) {
+    ErrR = std::move(PTU.takeError());
+    return {};
+  }
+
+  std::vector<std::string> Comps;
+  for (auto c : ConvertToCodeCompleteStrings(Results)) {
+    if (c.startswith(Prefix))
+      Comps.push_back(c.substr(Prefix.size()).str());
+  }
+
+  return Comps;
 }
 
 TEST(CodeCompletionTest, Sanity) {
@@ -24,11 +62,11 @@ TEST(CodeCompletionTest, Sanity) {
     consumeError(std::move(R));
     return;
   }
-  auto Completer = ReplListCompleter(CB, *Interp);
-  std::vector<llvm::LineEditor::Completion> comps =
-      Completer(std::string("f"), 1);
+  auto Err = llvm::Error::success();
+  auto comps = runComp(*Interp, "f", Err);
   EXPECT_EQ((size_t)2, comps.size()); // foo and float
-  EXPECT_EQ(comps[0].TypedText, std::string("oo"));
+  EXPECT_EQ(comps[0], std::string("oo"));
+  EXPECT_EQ((bool)Err, false);
 }
 
 TEST(CodeCompletionTest, SanityNoneValid) {
@@ -37,10 +75,10 @@ TEST(CodeCompletionTest, SanityNoneValid) {
     consumeError(std::move(R));
     return;
   }
-  auto Completer = ReplListCompleter(CB, *Interp);
-  std::vector<llvm::LineEditor::Completion> comps =
-      Completer(std::string("babanana"), 8);
+  auto Err = llvm::Error::success();
+  auto comps = runComp(*Interp, "babanana", Err);
   EXPECT_EQ((size_t)0, comps.size()); // foo and float
+  EXPECT_EQ((bool)Err, false);
 }
 
 TEST(CodeCompletionTest, TwoDecls) {
@@ -53,18 +91,16 @@ TEST(CodeCompletionTest, TwoDecls) {
     consumeError(std::move(R));
     return;
   }
-  auto Completer = ReplListCompleter(CB, *Interp);
-  std::vector<llvm::LineEditor::Completion> comps =
-      Completer(std::string("app"), 3);
+  auto Err = llvm::Error::success();
+  auto comps = runComp(*Interp, "app", Err);
   EXPECT_EQ((size_t)2, comps.size());
+  EXPECT_EQ((bool)Err, false);
 }
 
 TEST(CodeCompletionTest, CompFunDeclsNoError) {
   auto Interp = createInterpreter();
-  auto Completer = ReplListCompleter(CB, *Interp);
   auto Err = llvm::Error::success();
-  std::vector<llvm::LineEditor::Completion> comps =
-      Completer(std::string("void app("), 9, Err);
+  auto comps = runComp(*Interp, "void app(", Err);
   EXPECT_EQ((bool)Err, false);
 }
 

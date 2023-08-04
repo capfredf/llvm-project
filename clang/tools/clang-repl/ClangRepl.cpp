@@ -15,6 +15,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Interpreter/CodeCompletion.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/LineEditor/LineEditor.h"
@@ -70,6 +71,69 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
   }
   return (Errs || HasError) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+
+struct ReplListCompleter {
+  clang::IncrementalCompilerBuilder &CB;
+  clang::Interpreter &MainInterp;
+  ReplListCompleter(clang::IncrementalCompilerBuilder &CB,
+                    clang::Interpreter &Interp)
+      : CB(CB), MainInterp(Interp){};
+
+  std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
+                                                       size_t Pos) const {
+    auto Err = llvm::Error::success();
+    auto res = (*this)(Buffer, Pos, Err);
+    if (Err)
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+    return res;
+  }
+
+  std::vector<llvm::LineEditor::Completion>
+  operator()(llvm::StringRef Buffer, size_t Pos, llvm::Error &ErrRes) const {
+    std::vector<llvm::LineEditor::Completion> Comps;
+    std::vector<clang::CodeCompletionResult> Results;
+
+    auto CI = CB.CreateCpp();
+    if (auto Err = CI.takeError()) {
+      ErrRes = std::move(Err);
+      return {};
+    }
+
+    size_t Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
+    auto CFG = clang::CodeCompletionCfg{
+        "input_line_[Completion]", 1, Lines,
+        const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
+        Results};
+    auto Interp = clang::Interpreter::create(std::move(*CI), CFG);
+
+    if (auto Err = Interp.takeError()) {
+      // log the error and returns an empty vector;
+      ErrRes = std::move(Err);
+
+      return {};
+    }
+
+    if (auto PTU = (*Interp)->Parse(Buffer); !PTU) {
+      ErrRes = std::move(PTU.takeError());
+      return {};
+    }
+
+    size_t space_pos = Buffer.rfind(" ");
+    llvm::StringRef s;
+    if (space_pos == llvm::StringRef::npos) {
+      s = Buffer;
+    } else {
+      s = Buffer.substr(space_pos + 1);
+    }
+
+    for (auto c : ConvertToCodeCompleteStrings(Results)) {
+      if (c.startswith(s))
+        Comps.push_back(
+            llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
+    }
+    return Comps;
+  }
+};
 
 llvm::ExitOnError ExitOnErr;
 int main(int argc, const char **argv) {
@@ -158,7 +222,7 @@ int main(int argc, const char **argv) {
   if (OptInputs.empty()) {
     llvm::LineEditor LE("clang-repl");
     std::string Input;
-    LE.setListCompleter(clang::ReplListCompleter(CB, *Interp));
+    LE.setListCompleter(ReplListCompleter(CB, *Interp));
     while (std::optional<std::string> Line = LE.readLine()) {
       llvm::StringRef L = *Line;
       L = L.trim();

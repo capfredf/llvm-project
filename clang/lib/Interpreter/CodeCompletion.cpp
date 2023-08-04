@@ -54,17 +54,16 @@ void ReplCompletionConsumer::ProcessCodeCompleteResults(
   }
 }
 
-std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
-    const std::vector<CodeCompletionResult> &Results) const {
-  std::vector<StringRef> CompletionStrings;
+std::vector<llvm::StringRef> ConvertToCodeCompleteStrings(const std::vector<clang::CodeCompletionResult> &Results) {
+  std::vector<llvm::StringRef> CompletionStrings;
   for (auto Res : Results) {
     switch (Res.Kind) {
-    case CodeCompletionResult::RK_Declaration:
+    case clang::CodeCompletionResult::RK_Declaration:
       if (auto *ID = Res.Declaration->getIdentifier()) {
         CompletionStrings.push_back(ID->getName());
       }
       break;
-    case CodeCompletionResult::RK_Keyword:
+    case clang::CodeCompletionResult::RK_Keyword:
       CompletionStrings.push_back(Res.Keyword);
       break;
     default:
@@ -74,56 +73,5 @@ std::vector<StringRef> ReplListCompleter::toCodeCompleteStrings(
   return CompletionStrings;
 }
 
-std::vector<llvm::LineEditor::Completion>
-ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos) const {
-  auto Err = llvm::Error::success();
-  auto res = (*this)(Buffer, Pos, Err);
-  if (Err)
-    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
-  return res;
-}
 
-std::vector<llvm::LineEditor::Completion>
-ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
-                              llvm::Error &ErrRes) const {
-  std::vector<llvm::LineEditor::Completion> Comps;
-  std::vector<CodeCompletionResult> Results;
-
-  auto CI = CB.CreateCpp();
-  if (auto Err = CI.takeError()) {
-    ErrRes = std::move(Err);
-    return {};
-  }
-
-  size_t Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
-  auto CFG = CodeCompletionCfg{"input_line_[Completion]", 1, Lines, const_cast<CompilerInstance*>(MainInterp.getCompilerInstance()), Results};
-  auto Interp = Interpreter::create(std::move(*CI), CFG);
-
-  if (auto Err = Interp.takeError()) {
-    // log the error and returns an empty vector;
-    ErrRes = std::move(Err);
-
-    return {};
-  }
-
-  if (auto PTU = (*Interp)->Parse(Buffer); !PTU) {
-    ErrRes = std::move(PTU.takeError());
-    return {};
-  }
-
-  size_t space_pos = Buffer.rfind(" ");
-  llvm::StringRef s;
-  if (space_pos == llvm::StringRef::npos) {
-    s = Buffer;
-  } else {
-    s = Buffer.substr(space_pos + 1);
-  }
-
-  for (auto c : toCodeCompleteStrings(Results)) {
-    if (c.startswith(s))
-      Comps.push_back(
-          llvm::LineEditor::Completion(c.substr(s.size()).str(), c.str()));
-  }
-  return Comps;
-}
 } // namespace clang
