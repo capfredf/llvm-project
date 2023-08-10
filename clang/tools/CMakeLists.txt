@@ -14,6 +14,7 @@ add_clang_subdirectory(clang-offload-bundler)
 add_clang_subdirectory(clang-scan-deps)
 if(HAVE_CLANG_REPL_SUPPORT)
   add_clang_subdirectory(clang-repl)
+  add_clang_subdirectory(repl-astunit)
 endif()
 
 add_clang_subdirectory(c-index-test)
