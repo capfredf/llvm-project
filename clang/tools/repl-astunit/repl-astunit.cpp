@@ -84,8 +84,7 @@ static void codeComplete(llvm::StringRef Prefix, unsigned complete_column, const
                        llvm::IntrusiveRefCntPtr<clang::ExternalASTSource> astContextExternalSource(
                                                                                                    myExternalSource);
                        CI.getASTContext().setExternalSource(astContextExternalSource);
-                       CI.getASTContext().getTranslationUnitDecl()->setHasExternalVisibleStorage(
-                                                                                                        true);
+                       CI.getASTContext().getTranslationUnitDecl()->setHasExternalVisibleStorage(true);
                      });
   }
 
