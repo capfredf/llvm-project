@@ -127,6 +127,8 @@ public:
   /// Undo N previous incremental inputs.
   llvm::Error Undo(unsigned N = 1);
 
+  void codeComplete(llvm::StringRef Content, unsigned Col, const clang::CompilerInstance* ParentCI, std::vector<CodeCompletionResult>& CCResults);
+
   /// Link a dynamic library
   llvm::Error LoadDynamicLibrary(const char *name);
 

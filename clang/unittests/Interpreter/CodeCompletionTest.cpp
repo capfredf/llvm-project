@@ -21,20 +21,14 @@ static std::unique_ptr<Interpreter> createInterpreter() {
 static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
                                         llvm::StringRef Prefix,
                                         llvm::Error &ErrR) {
-  std::vector<clang::CodeCompletionResult> Results;
   auto CI = CB.CreateCpp();
   if (auto Err = CI.takeError()) {
     ErrR = std::move(Err);
     return {};
   }
 
-  size_t Lines = std::count(Prefix.begin(), Prefix.end(), '\n') + 1;
-  auto CFG = clang::CodeCompletionCfg{
-      Prefix.size(), Lines,
-      const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
-      Results};
 
-  auto Interp = clang::Interpreter::create(std::move(*CI), CFG);
+  auto Interp = clang::Interpreter::create(std::move(*CI));
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
     ErrR = std::move(Err);
@@ -42,10 +36,10 @@ static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
     return {};
   }
 
-  if (auto PTU = (*Interp)->Parse(Prefix); !PTU) {
-    ErrR = std::move(PTU.takeError());
-    return {};
-  }
+  std::vector<clang::CodeCompletionResult> Results;
+  size_t Lines = std::count(Prefix.begin(), Prefix.end(), '\n') + 1;
+
+  (*Interp)->codeComplete(Prefix, Prefix.size(), MainInterp.getCompilerInstance(), Results);
 
   std::vector<std::string> Comps;
   for (auto c : ConvertToCodeCompleteStrings(Results)) {

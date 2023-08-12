@@ -100,11 +100,7 @@ struct ReplListCompleter {
     }
 
     size_t Lines = std::count(Buffer.begin(), Buffer.end(), '\n') + 1;
-    auto CFG = clang::CodeCompletionCfg{
-        Pos + 1, Lines,
-        const_cast<clang::CompilerInstance *>(MainInterp.getCompilerInstance()),
-        Results};
-    auto Interp = clang::Interpreter::create(std::move(*CI), CFG);
+    auto Interp = clang::Interpreter::create(std::move(*CI));
 
     if (auto Err = Interp.takeError()) {
       // log the error and returns an empty vector;
@@ -113,10 +109,7 @@ struct ReplListCompleter {
       return {};
     }
 
-    if (auto PTU = (*Interp)->Parse(Buffer); !PTU) {
-      ErrRes = std::move(PTU.takeError());
-      return {};
-    }
+    (*Interp)->codeComplete(Buffer, Pos + 1, MainInterp.getCompilerInstance(), Results);
 
     size_t space_pos = Buffer.rfind(" ");
     llvm::StringRef s;
