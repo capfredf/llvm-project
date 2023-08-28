@@ -182,25 +182,27 @@ void ExternalSource::completeVisibleDeclsMap(
 void codeComplete(CompilerInstance *InterpCI, llvm::StringRef Content,
                   unsigned Line, unsigned Col, const CompilerInstance *ParentCI,
                   std::vector<std::string> &CCResults) {
-  std::unique_ptr<llvm::MemoryBuffer> MB =
-      llvm::MemoryBuffer::getMemBufferCopy(Content, CodeCompletionFileName);
-  llvm::SmallVector<ASTUnit::RemappedFile, 4> RemappedFiles;
-
-  RemappedFiles.push_back(std::make_pair(CodeCompletionFileName, MB.release()));
-
   auto DiagOpts = DiagnosticOptions();
   auto consumer = ReplCompletionConsumer(CCResults);
 
   auto diag = InterpCI->getDiagnosticsPtr();
-  ASTUnit *AU = ASTUnit::LoadFromCompilerInvocationAction(
+  std::unique_ptr<ASTUnit> AU(ASTUnit::LoadFromCompilerInvocationAction(
       InterpCI->getInvocationPtr(), std::make_shared<PCHContainerOperations>(),
-      diag);
+      diag));
   llvm::SmallVector<clang::StoredDiagnostic, 8> sd = {};
   llvm::SmallVector<const llvm::MemoryBuffer *, 1> tb = {};
   InterpCI->getFrontendOpts().Inputs[0] = FrontendInputFile(
       CodeCompletionFileName, Language::CXX, InputKind::Source);
   auto Act = std::unique_ptr<IncrementalSyntaxOnlyAction>(
       new IncrementalSyntaxOnlyAction(ParentCI));
+  std::unique_ptr<llvm::MemoryBuffer> MB =
+    llvm::MemoryBuffer::getMemBufferCopy(Content, CodeCompletionFileName);
+  llvm::SmallVector<ASTUnit::RemappedFile, 4> RemappedFiles;
+
+  RemappedFiles.push_back(std::make_pair(CodeCompletionFileName, MB.get()));
+  // we don't want the AU destructor to release the memory buffer that MB
+  // owns twice, because MB handles its resource on its own.
+  AU->setOwnsRemappedFileBuffers(false);
   AU->CodeComplete(CodeCompletionFileName, 1, Col, RemappedFiles, false, false,
                    false, consumer,
                    std::make_shared<clang::PCHContainerOperations>(), *diag,
